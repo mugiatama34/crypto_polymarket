@@ -95,11 +95,38 @@
             "down": { "$ref": "#/$defs/book_side" }
           }
         },
-        "btc_binance": { "type": ["number", "null"] },
-        "btc_oracle": { "type": ["number", "null"] },
+        "btc_binance": { "$ref": "#/$defs/oracle_feed" },
+        "btc_oracle": { "$ref": "#/$defs/oracle_feed" },
         "status": { "enum": ["ok", "partial", "missed", "error"] },
         "error": { "type": ["string", "null"] }
       }
+    },
+    "oracle_feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source", "feed_ts"],
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "source": {
+          "enum": ["rtds_chainlink", "rtds_binance", "rest_poll", "onchain", "none"]
+        },
+        "feed_ts": { "type": ["integer", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "value": { "type": "null" } } },
+          "then": {
+            "properties": {
+              "source": { "const": "none" },
+              "feed_ts": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "value": { "type": "number" } } },
+          "then": { "properties": { "source": { "not": { "const": "none" } } } }
+        }
+      ]
     },
     "cost_model": {
       "type": "object",

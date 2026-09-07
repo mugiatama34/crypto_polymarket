@@ -84,8 +84,8 @@ Bir satır = bir 5 dakikalık market.
 | `runner_ts` | int | Yerel saat, çağrı öncesi |
 | `latency_ms` | int | `response_ts - runner_ts` |
 | `book` | object | `{up: {...}, down: {...}}`, bkz. 4.1.1 |
-| `btc_binance` | float \| null | Referans fiyat |
-| `btc_oracle` | float \| null | Chainlink — çözüm kaynağı |
+| `btc_binance` | object | Referans fiyat, bkz. 4.1.2 |
+| `btc_oracle` | object | Chainlink — çözüm kaynağı, bkz. 4.1.2 |
 | `status` | string | `ok` \| `partial` \| `missed` \| `error` |
 | `error` | string \| null | Varsa hata metni |
 
@@ -110,6 +110,23 @@ Sıra garantilidir: `index 0` = en iyi fiyat seviyesi (best). Defterde
 `best_ask`/`ask_size` alanları `asks_top5[0]` ile tutarlı olmak
 zorundadır. Doğrulayıcı bu tutarlılığı kontrol eder; uyuşmazsa satır
 reddedilir.
+
+#### 4.1.2 `btc_binance` / `btc_oracle`
+
+| Alan | Tip | Not |
+|---|---|---|
+| `value` | float \| null | Fiyat. `null` ise feed'ten okunamadı. |
+| `source` | string | `rtds_chainlink` \| `rtds_binance` \| `rest_poll` \| `onchain` \| `none` |
+| `feed_ts` | int \| null | Feed'in kendi bildirdiği zaman — bizim `response_ts`'imiz değil. Oracle gecikmesini ölçmenin tek yolu bu. |
+
+Tutarlılık kuralları:
+
+- `value: null` ⟺ `source: "none"` ve `feed_ts: null`. Değer yoksa
+  kaynak ve zaman damgası da yoktur.
+- `value` doluysa `source` `"none"` olamaz.
+- `feed_ts: null` ile `value` dolu olması geçerlidir — bazı REST uçları
+  zaman damgası döndürmez (`source: "rest_poll"` tipik örnek). Bu
+  bilinçli bir gevşeklik; katılaştırmadan önce burayı tartışmaya aç.
 
 ### 4.2 `decision`
 
@@ -174,3 +191,15 @@ kaybı.
 Toplayıcı her satırı yazmadan önce şemaya karşı doğrular. Doğrulama
 başarısızsa satır `data/rejected/` altına, hata sebebiyle birlikte yazılır —
 sessizce düşürülmez.
+
+Alanlar arası tutarlılık kuralları iki yerde yaşar:
+
+- **JSON Schema içinde** (`schemas/round.schema.json`), `if`/`then` ile ifade
+  edilebilenler — ör. `oracle_feed`'de `value` ↔ `source`/`feed_ts`.
+- **Python'da** (`validator/core.py`), draft-07'nin ifade edemediği
+  karşılaştırmalar — ör. `book_side`'da `best_bid`/`bid_size` ↔
+  `bids_top5[0]` (iki alanın *değerini* birbirine göre karşılaştırmak
+  gerekir, draft-07 bunu yapamaz).
+
+Yeni bir tutarlılık kuralı eklerken önce ikisine de bakılmalı: ifade
+edilebiliyorsa şemaya, edilemiyorsa doğrulayıcıya eklenir.
