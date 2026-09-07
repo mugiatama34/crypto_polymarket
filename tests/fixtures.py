@@ -40,8 +40,16 @@ VALID_ROUND = {
                     "mid": 0.47,
                 },
             },
-            "btc_binance": 67123.4,
-            "btc_oracle": 67120.1,
+            "btc_binance": {
+                "value": 67123.4,
+                "source": "rtds_binance",
+                "feed_ts": 1717000060000,
+            },
+            "btc_oracle": {
+                "value": 67120.1,
+                "source": "rtds_chainlink",
+                "feed_ts": 1717000059800,
+            },
             "status": "ok",
             "error": None,
         }
