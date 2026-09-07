@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "outcome",
+  "description": "SCHEMA.md bolum 5 - outcomes.jsonl satiri",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "round_id", "resolved_ts", "outcome",
+    "resolution_source", "open_price", "close_price", "raw"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "round_id": { "type": "string", "minLength": 1 },
+    "resolved_ts": { "type": "integer" },
+    "outcome": { "enum": ["up", "down", "invalid"] },
+    "resolution_source": { "type": "string", "minLength": 1 },
+    "open_price": { "type": ["number", "null"] },
+    "close_price": { "type": ["number", "null"] },
+    "raw": { "type": "object" }
+  }
+}
