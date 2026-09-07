@@ -29,6 +29,33 @@ def _load_validator(record_type: str) -> Draft7Validator:
 _VALIDATORS = {record_type: _load_validator(record_type) for record_type in _SCHEMA_FILES}
 
 
+def _book_side_consistency_errors(record: dict) -> list[str]:
+    """best_bid/bid_size <-> bids_top5[0], best_ask/ask_size <-> asks_top5[0].
+
+    JSON Schema (draft-07) tarafinda cross-field karsilastirma ifade
+    edilemedigi icin bu kontrol schema dogrulamasi gectikten sonra ayrica
+    yapilir. Dizi bossa karsilastirma atlanir (SCHEMA.md 4.1.1).
+    """
+    errors = []
+    for i, obs in enumerate(record.get("observations", [])):
+        book = obs.get("book", {})
+        for side in ("up", "down"):
+            b = book.get(side)
+            if not isinstance(b, dict):
+                continue
+            bids = b.get("bids_top5") or []
+            if bids and (b.get("best_bid") != bids[0][0] or b.get("bid_size") != bids[0][1]):
+                errors.append(
+                    f"observations/{i}/book/{side}: best_bid/bid_size does not match bids_top5[0]"
+                )
+            asks = b.get("asks_top5") or []
+            if asks and (b.get("best_ask") != asks[0][0] or b.get("ask_size") != asks[0][1]):
+                errors.append(
+                    f"observations/{i}/book/{side}: best_ask/ask_size does not match asks_top5[0]"
+                )
+    return errors
+
+
 def validate(record: dict, record_type: str) -> tuple[bool, list[str]]:
     """SCHEMA.md'ye gore record'u dogrular.
 
@@ -39,11 +66,16 @@ def validate(record: dict, record_type: str) -> tuple[bool, list[str]]:
 
     validator = _VALIDATORS[record_type]
     errors = sorted(validator.iter_errors(record), key=str)
-    if not errors:
-        return True, []
+    if errors:
+        messages = [
+            f"{'/'.join(str(p) for p in e.path) or '<root>'}: {e.message}"
+            for e in errors
+        ]
+        return False, messages
 
-    messages = [
-        f"{'/'.join(str(p) for p in e.path) or '<root>'}: {e.message}"
-        for e in errors
-    ]
-    return False, messages
+    if record_type == "round":
+        consistency_errors = _book_side_consistency_errors(record)
+        if consistency_errors:
+            return False, consistency_errors
+
+    return True, []

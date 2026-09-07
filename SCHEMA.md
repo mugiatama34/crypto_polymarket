@@ -91,8 +91,25 @@ Bir satır = bir 5 dakikalık market.
 
 #### 4.1.1 `book` (her token için)
 
-`best_bid`, `best_ask`, `bid_size`, `ask_size`, `spread`,
-`depth_bid_top5`, `depth_ask_top5`, `mid`
+| Alan | Tip | Not |
+|---|---|---|
+| `best_bid` | float | `bids_top5[0][0]` ile tutarlı olmalı |
+| `best_ask` | float | `asks_top5[0][0]` ile tutarlı olmalı |
+| `bid_size` | float | `bids_top5[0][1]` ile tutarlı olmalı |
+| `ask_size` | float | `asks_top5[0][1]` ile tutarlı olmalı |
+| `spread` | float | |
+| `mid` | float | |
+| `bids_top5` | array | `[[price, size], ...]` — en iyiden başlayarak en fazla 5 seviye |
+| `asks_top5` | array | `[[price, size], ...]` — en iyiden başlayarak en fazla 5 seviye |
+
+Sıra garantilidir: `index 0` = en iyi fiyat seviyesi (best). Defterde
+5'ten az seviye varsa dizi kısa kalır — **doldurma yapılmaz**. Boş dizi
+(`[]`) geçerlidir (o tarafta hiç seviye yoksa).
+
+`best_bid`/`bid_size` alanları, dizi boş değilse `bids_top5[0]` ile;
+`best_ask`/`ask_size` alanları `asks_top5[0]` ile tutarlı olmak
+zorundadır. Doğrulayıcı bu tutarlılığı kontrol eder; uyuşmazsa satır
+reddedilir.
 
 ### 4.2 `decision`
 

@@ -41,12 +41,24 @@
     "raw": { "type": "array" }
   },
   "$defs": {
+    "price_level": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": [{ "type": "number" }, { "type": "number" }],
+      "additionalItems": false
+    },
+    "top5_levels": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/price_level" }
+    },
     "book_side": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "best_bid", "best_ask", "bid_size", "ask_size", "spread",
-        "depth_bid_top5", "depth_ask_top5", "mid"
+        "bids_top5", "asks_top5", "mid"
       ],
       "properties": {
         "best_bid": { "type": "number" },
@@ -54,8 +66,8 @@
         "bid_size": { "type": "number" },
         "ask_size": { "type": "number" },
         "spread": { "type": "number" },
-        "depth_bid_top5": { "type": "number" },
-        "depth_ask_top5": { "type": "number" },
+        "bids_top5": { "$ref": "#/$defs/top5_levels" },
+        "asks_top5": { "$ref": "#/$defs/top5_levels" },
         "mid": { "type": "number" }
       }
     },
