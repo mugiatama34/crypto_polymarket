@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "round",
+  "description": "SCHEMA.md bolum 4 - rounds.jsonl satiri",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "runner_id", "job_id", "data_lane", "round_id",
+    "condition_id", "token_ids", "open_ts", "close_ts", "observations",
+    "decision", "status", "raw"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "runner_id": { "enum": ["longjob", "cron"] },
+    "job_id": { "type": "string", "minLength": 1 },
+    "data_lane": { "enum": ["forward_paper", "backtest"] },
+    "round_id": { "type": "string", "minLength": 1 },
+    "condition_id": { "type": "string", "minLength": 1 },
+    "token_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["up", "down"],
+      "properties": {
+        "up": { "type": "string", "minLength": 1 },
+        "down": { "type": "string", "minLength": 1 }
+      }
+    },
+    "open_ts": { "type": "integer" },
+    "close_ts": { "type": "integer" },
+    "observations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/observation" }
+    },
+    "decision": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/decision" }
+      ]
+    },
+    "status": { "enum": ["complete", "partial", "missed"] },
+    "raw": { "type": "array" }
+  },
+  "$defs": {
+    "price_level": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": [{ "type": "number" }, { "type": "number" }],
+      "additionalItems": false
+    },
+    "top5_levels": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/price_level" }
+    },
+    "book_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "best_bid", "best_ask", "bid_size", "ask_size", "spread",
+        "bids_top5", "asks_top5", "mid"
+      ],
+      "properties": {
+        "best_bid": { "type": "number" },
+        "best_ask": { "type": "number" },
+        "bid_size": { "type": "number" },
+        "ask_size": { "type": "number" },
+        "spread": { "type": "number" },
+        "bids_top5": { "$ref": "#/$defs/top5_levels" },
+        "asks_top5": { "$ref": "#/$defs/top5_levels" },
+        "mid": { "type": "number" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offset_sec", "offset_actual_sec", "venue_ts", "response_ts",
+        "runner_ts", "latency_ms", "book", "btc_binance", "btc_oracle",
+        "status", "error"
+      ],
+      "properties": {
+        "offset_sec": { "type": "integer" },
+        "offset_actual_sec": { "type": "number" },
+        "venue_ts": { "type": "integer" },
+        "response_ts": { "type": "integer" },
+        "runner_ts": { "type": "integer" },
+        "latency_ms": { "type": "integer" },
+        "book": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["up", "down"],
+          "properties": {
+            "up": { "$ref": "#/$defs/book_side" },
+            "down": { "$ref": "#/$defs/book_side" }
+          }
+        },
+        "btc_binance": { "type": ["number", "null"] },
+        "btc_oracle": { "type": ["number", "null"] },
+        "status": { "enum": ["ok", "partial", "missed", "error"] },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "cost_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fee", "spread_cost", "slippage_assumed", "formula_id"],
+      "properties": {
+        "fee": { "type": "number" },
+        "spread_cost": { "type": "number" },
+        "slippage_assumed": { "type": "number" },
+        "formula_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ts", "action", "side", "rule_id", "rule_inputs",
+        "entry_price_assumed", "entry_price_basis", "size_shares",
+        "capital_at_risk", "cost_model"
+      ],
+      "properties": {
+        "ts": { "type": "integer" },
+        "action": { "enum": ["enter", "skip"] },
+        "side": { "enum": ["up", "down", null] },
+        "rule_id": { "type": "string", "minLength": 1 },
+        "rule_inputs": { "type": "object" },
+        "entry_price_assumed": { "type": ["number", "null"] },
+        "entry_price_basis": { "type": "string", "minLength": 1 },
+        "size_shares": { "type": ["number", "null"] },
+        "capital_at_risk": { "type": ["number", "null"] },
+        "cost_model": { "$ref": "#/$defs/cost_model" }
+      }
+    }
+  }
+}

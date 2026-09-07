@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "heartbeat",
+  "description": "SCHEMA.md bolum 6 - heartbeat.jsonl satiri",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "runner_id", "job_id", "event", "ts",
+    "rounds_seen", "rounds_missed", "detail"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "runner_id": { "enum": ["longjob", "cron"] },
+    "job_id": { "type": "string", "minLength": 1 },
+    "event": { "enum": ["job_start", "job_end", "tick", "error"] },
+    "ts": { "type": "integer" },
+    "rounds_seen": { "type": ["integer", "null"] },
+    "rounds_missed": { "type": ["integer", "null"] },
+    "detail": { "type": ["string", "null"] }
+  }
+}
