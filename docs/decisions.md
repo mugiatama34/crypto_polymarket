@@ -264,3 +264,27 @@ Böylece:
 şema veya doğrulayıcıda böyle bir kural varsa kaldırılır. `transport`
 zorunlu alandır; eksikse veya `ws`/`rest` dışında bir değer taşıyorsa
 satır reddedilir.
+
+---
+
+## K-19 — REST bacağının referans borsası WS bacağıyla aynı olmayabilir
+
+WS bacağında `btc_binance`, Polymarket RTDS'in kendi Binance relay'idir
+(`source: rtds_binance`) — her zaman Binance. REST bacağında ise Binance'in
+genel API'si ABD merkezli IP'leri (GitHub Actions runner'ları dahil) 451 ile
+reddedebiliyor. Bu durumda toplayıcı Coinbase'e, o da olmazsa Kraken'e
+düşer.
+
+Sonuç: K-18'in "taşıma karşılaştırması tek değişkenlidir (transport)"
+varsayımı, borsa düşmesi tetiklendiğinde `btc_binance` için bozulabilir —
+o run'da hem `transport` hem referans borsa değişmiş olur. Bu gizli
+değildir: hangi borsanın kullanıldığı her REST gözleminin `raw[]`
+girdisinde durur (`endpoint: binance_ticker|coinbase_ticker|kraken_ticker`)
+ve `job_start` heartbeat'inde özetlenir. Metrik katmanı, borsa düşmesi
+görülen run'ları `btc_binance` transport karşılaştırmasından ayrı
+değerlendirmelidir.
+
+**Sonuç:** düşme sırası Binance → Coinbase → Kraken. Toplayıcı her job
+başlangıcında (round başına değil) bir kez problar ve o run boyunca aynı
+borsayı kullanır. Üçü de erişilemezse `btc_binance` REST gözlemi
+`{value: null, source: "none", feed_ts: null}` ile yazılır, atlanmaz.

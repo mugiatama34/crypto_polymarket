@@ -92,6 +92,10 @@ Bir satır = bir 5 dakikalık market.
 | `status` | string | `ok` \| `partial` \| `missed` \| `error` |
 | `error` | string \| null | Varsa hata metni |
 
+> Not: `venue_ts`, defterin (CLOB) zaman damgasıdır. Fiyat feed'lerinin
+> kendi zaman damgaları ayrı ayrı `btc_binance.feed_ts` /
+> `btc_oracle.feed_ts` içindedir — bkz. 4.1.2.
+
 #### 4.1.1 `book` (her token için)
 
 | Alan | Tip | Not |
