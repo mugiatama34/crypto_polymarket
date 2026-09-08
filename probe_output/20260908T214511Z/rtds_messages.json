@@ -1,0 +1,17 @@
+{
+  "name": "rtds_first_messages",
+  "url": "wss://ws-live-data.polymarket.com",
+  "subscription_type_tried": "update",
+  "connected": true,
+  "message_count": 0,
+  "messages": [],
+  "error": null,
+  "captured_at_utc": "2026-09-08T21:45:24.299735+00:00",
+  "type_star_fallback": {
+    "type_tried": "*",
+    "connected": true,
+    "message_count": 0,
+    "messages": [],
+    "error": null
+  }
+}

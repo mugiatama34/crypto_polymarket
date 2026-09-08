@@ -1,0 +1,48 @@
+{
+  "slug_vs_keyset_slug": {
+    "classic_probe": "gamma_slug",
+    "keyset_probe": "gamma_keyset_slug",
+    "classic_status": 200,
+    "keyset_status": 200,
+    "classic_event_found": true,
+    "keyset_event_found": false,
+    "field_presence": {
+      "classic": {
+        "slug": true,
+        "ticker": true,
+        "startDate": true,
+        "startTime": true,
+        "eventStartTime": false,
+        "endDate": true,
+        "endTime": false,
+        "markets[0].conditionId": true,
+        "markets[0].clobTokenIds": true,
+        "markets[0].outcomes": true
+      },
+      "keyset": {}
+    }
+  },
+  "listing_vs_keyset_listing": {
+    "classic_probe": "gamma_listing",
+    "keyset_probe": "gamma_keyset_listing",
+    "classic_status": 200,
+    "keyset_status": 200,
+    "classic_event_found": true,
+    "keyset_event_found": false,
+    "field_presence": {
+      "classic": {
+        "slug": true,
+        "ticker": true,
+        "startDate": true,
+        "startTime": false,
+        "eventStartTime": false,
+        "endDate": true,
+        "endTime": false,
+        "markets[0].conditionId": true,
+        "markets[0].clobTokenIds": true,
+        "markets[0].outcomes": true
+      },
+      "keyset": {}
+    }
+  }
+}

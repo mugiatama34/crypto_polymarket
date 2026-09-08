@@ -1,0 +1,26 @@
+{
+  "name": "exchange_binance",
+  "method": "GET",
+  "url": "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+  "params": null,
+  "requested_at_utc": "2026-09-08T21:45:15.410914+00:00",
+  "status_code": 451,
+  "elapsed_ms": 141,
+  "headers": {
+    "server": "CloudFront",
+    "date": "Tue, 08 Sep 2026 21:45:15 GMT",
+    "content-length": "224",
+    "connection": "keep-alive",
+    "content-type": "application/json",
+    "x-cache": "Error from cloudfront",
+    "via": "1.1 836f0dfed3818c2bc3109f08a90e9554.cloudfront.net (CloudFront)",
+    "x-amz-cf-pop": "SEA900-P5",
+    "x-amz-cf-id": "nxLC20J4OAuPIYArgOesXNA1X7XYbIyVLUKrIPFvlKvuxvRjHCqq9A=="
+  },
+  "body_text": "{\n  \"code\": 0,\n  \"msg\": \"Service unavailable from a restricted location according to 'b. Eligibility' in https://www.binance.com/en/terms. Please contact customer service if you believe you received this message in error.\"\n}",
+  "body_json": {
+    "code": 0,
+    "msg": "Service unavailable from a restricted location according to 'b. Eligibility' in https://www.binance.com/en/terms. Please contact customer service if you believe you received this message in error."
+  },
+  "error": null
+}

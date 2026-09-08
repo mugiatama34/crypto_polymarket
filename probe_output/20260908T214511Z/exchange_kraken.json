@@ -1,0 +1,74 @@
+{
+  "name": "exchange_kraken",
+  "method": "GET",
+  "url": "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
+  "params": null,
+  "requested_at_utc": "2026-09-08T21:45:15.345630+00:00",
+  "status_code": 200,
+  "elapsed_ms": 64,
+  "headers": {
+    "date": "Tue, 08 Sep 2026 21:45:15 GMT",
+    "content-type": "application/json",
+    "transfer-encoding": "chunked",
+    "connection": "keep-alive",
+    "cf-ray": "a381239f1e7a7657-SEA",
+    "cf-cache-status": "HIT",
+    "set-cookie": "facade-lang=en-us; Path=/; Domain=kraken.com; Max-Age=2592000; SameSite=Lax; Secure, __cf_bm=NdZ_FqvsgUx827DoB4iv5WuAwPyEJjkpdaWI6Q6GtIk-1788903915.3819563-1.0.1.1-JbbPpC2LWAWsRXMsfJ1O7xVK4pF0hTqQRdOxRqvZBLy9_psMmbLLB9L6J_y9TePF_Jj1b7kCqKXwxi3Iw30N5xLSIdp84JK_gwOZBHpyZlkt2JqxTuQxDwOvDDwfIeQn; HttpOnly; SameSite=None; Secure; Path=/; Domain=kraken.com; Expires=Tue, 08 Sep 2026 22:15:15 GMT",
+    "age": "1",
+    "cache-control": "max-age=2, public",
+    "last-modified": "Tue, 08 Sep 2026 21:45:13 GMT",
+    "server": "cloudflare",
+    "x-trace-id": "0ab2b86b01a082fb7833000f70f19e18",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "vary": "accept-encoding",
+    "x-content-type-options": "nosniff",
+    "jz3zubrqmsdk1-pad": "EAiPeFDo!D~jp6oPWErD*TukGT3DVW|u+R-",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-proxy": "gateway",
+    "content-encoding": "gzip"
+  },
+  "body_text": "{\"error\":[],\"result\":{\"XXBTZUSD\":{\"a\":[\"78519.60000\",\"1\",\"1.000\"],\"b\":[\"78519.50000\",\"1\",\"1.000\"],\"c\":[\"78519.60000\",\"0.00270270\"],\"v\":[\"1971.75644679\",\"2062.49995822\"],\"p\":[\"78495.62399\",\"78519.49551\"],\"t\":[88202,95076],\"l\":[\"77609.40000\",\"77609.40000\"],\"h\":[\"79498.00000\",\"79498.00000\"],\"o\":\"79090.40000\"}}}",
+  "body_json": {
+    "error": [],
+    "result": {
+      "XXBTZUSD": {
+        "a": [
+          "78519.60000",
+          "1",
+          "1.000"
+        ],
+        "b": [
+          "78519.50000",
+          "1",
+          "1.000"
+        ],
+        "c": [
+          "78519.60000",
+          "0.00270270"
+        ],
+        "v": [
+          "1971.75644679",
+          "2062.49995822"
+        ],
+        "p": [
+          "78495.62399",
+          "78519.49551"
+        ],
+        "t": [
+          88202,
+          95076
+        ],
+        "l": [
+          "77609.40000",
+          "77609.40000"
+        ],
+        "h": [
+          "79498.00000",
+          "79498.00000"
+        ],
+        "o": "79090.40000"
+      }
+    }
+  },
+  "error": null
+}

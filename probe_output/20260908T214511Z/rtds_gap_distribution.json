@@ -1,0 +1,17 @@
+{
+  "name": "rtds_gap_distribution",
+  "window_sec": 60.0,
+  "connected": true,
+  "error": null,
+  "per_topic": {
+    "crypto_prices": {
+      "count": 0,
+      "gaps_sec": null
+    },
+    "crypto_prices_chainlink": {
+      "count": 0,
+      "gaps_sec": null
+    }
+  },
+  "captured_at_utc": "2026-09-08T21:46:30.600783+00:00"
+}
