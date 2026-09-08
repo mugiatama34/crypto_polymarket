@@ -33,6 +33,9 @@ class FakeWebSocket:
     async def send(self, message):
         self.sent.append(message)
 
+    async def close(self):
+        self.closed_by_test = True
+
 
 class FakeConnector:
     def __init__(self, connections):
@@ -168,6 +171,79 @@ async def test_reconnects_after_disconnect_and_reports_duration():
     duration_ms, error = disconnects[0]
     assert duration_ms > 0
     assert error is None
+
+
+@pytest.mark.asyncio
+async def test_force_reconnect_closes_and_reports_reason():
+    ws1 = FakeWebSocket([], keep_alive=True)
+    ws2 = FakeWebSocket(["after-reconnect"])
+    connector = FakeConnector([ws1, ws2])
+
+    received = []
+    disconnects = []
+
+    async def on_message(raw):
+        received.append(raw)
+        if raw == "after-reconnect":
+            client.stop()
+
+    async def on_disconnect(duration_ms, error):
+        disconnects.append((duration_ms, error))
+
+    client = PersistentWSClient(
+        "wss://fake",
+        on_message=on_message,
+        on_disconnect=on_disconnect,
+        connect_fn=connector,
+        sleep_fn=_instant_sleep,
+    )
+
+    async def force_reconnect_soon():
+        while client._ws is None:
+            await asyncio.sleep(0)
+        await client.force_reconnect("test_reason")
+
+    await asyncio.wait_for(asyncio.gather(client.run(), force_reconnect_soon()), timeout=5)
+
+    assert connector.calls == 2
+    assert received == ["after-reconnect"]
+    assert len(disconnects) == 1
+    duration_ms, error = disconnects[0]
+    assert error == "test_reason"
+
+
+@pytest.mark.asyncio
+async def test_set_on_disconnect_overrides_callback():
+    ws1 = FakeWebSocket(["msg1"])
+    ws2 = FakeWebSocket(["msg2"])
+    connector = FakeConnector([ws1, ws2])
+
+    original_calls = []
+    replaced_calls = []
+
+    async def on_message(raw):
+        if raw == "msg2":
+            client.stop()
+
+    async def original_on_disconnect(duration_ms, error):
+        original_calls.append((duration_ms, error))
+
+    async def replaced_on_disconnect(duration_ms, error):
+        replaced_calls.append((duration_ms, error))
+
+    client = PersistentWSClient(
+        "wss://fake",
+        on_message=on_message,
+        on_disconnect=original_on_disconnect,
+        connect_fn=connector,
+        sleep_fn=_instant_sleep,
+    )
+    client.set_on_disconnect(replaced_on_disconnect)
+
+    await client.run()
+
+    assert original_calls == []
+    assert len(replaced_calls) == 1
 
 
 @pytest.mark.asyncio

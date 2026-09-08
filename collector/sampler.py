@@ -59,6 +59,12 @@ async def build_ws_observation(
     geregi `null` yazilir; `rest` bacaginin latency_ms'iyle karistirilmaz.
     Veri tazeligi `staleness_ms` ile ayri olculur (response_ts -
     btc_reference.feed_ts).
+
+    Donen raw listesi RTDS'in ham zarflarini tasir (varsa) --
+    `rtds_client.snapshot()`'in `raw_envelope` alani, `publish_ts_ms`
+    gibi ayiklanmis alanlarin kaynaklandigi ham mesaj. CLOB WS defter
+    anlik goruntusu icin ayri bir ham kayit YOK (bu fazda kapsam disi);
+    yalnizca RTDS icin eklendi.
     """
     now_ms = now_ms_fn or _default_now_ms
     fired_at_ms = now_ms()
@@ -141,7 +147,13 @@ async def build_ws_observation(
         "status": status,
         "error": ("eksik: " + ", ".join(missing)) if missing else None,
     }
-    return observation, []
+
+    ws_raw = []
+    if binance_ws is not None and binance_ws.get("raw_envelope") is not None:
+        ws_raw.append({"endpoint": "rtds_binance", "payload": binance_ws["raw_envelope"]})
+    if chainlink_ws is not None and chainlink_ws.get("raw_envelope") is not None:
+        ws_raw.append({"endpoint": "rtds_chainlink", "payload": chainlink_ws["raw_envelope"]})
+    return observation, ws_raw
 
 
 async def build_rest_observation(

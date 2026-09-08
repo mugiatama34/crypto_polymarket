@@ -353,3 +353,55 @@ kendisi bu event'lerde anlamsız olduğu için hiç yer almıyor, `null` bile
 değil). Slug deseni bozulursa `discovery_listing_hits` job_end'de
 yükselir, tek satırda görünür; hangi round'ların etkilendiği gerekirse
 `raw[]`'a bakılır.
+
+---
+
+## K-22 — Event üst seviyesindeki `startDate` turun başlangıcı değildir
+
+Prob (2026-09-08), `gamma_client.fetch_round_market`'in `open_ts` için
+kullandığı aday alan listesinde `startDate`'in `startTime`'dan önce
+denendiğini ve gerçek uçta `startDate`'in turun başlangıcı DEĞİL,
+serinin ilk oluşturulma tarihi olduğunu ortaya çıkardı. Yanlış alan
+kullanılırsa tüm offset hesabı (SCHEMA.md bölüm 3, `close_ts - offset_sec`
+üzerinden hedef zaman) kayar — offset'ler gerçek turun kapanışına değil,
+serinin çok eski bir referans noktasına göre hesaplanmış olur.
+
+Aynı prob koşumunda `endDate` (18:35:00Z) turun gerçek bitişiyle
+eşleşti — yani sorun yalnızca `startDate`'te, `endDate`'in eşdeğer bir
+hatası yok.
+
+**Sonuç:** `gamma_client._START_DATE_FIELDS`, `startDate`'i tamamen
+çıkaracak şekilde değiştirildi: `("startTime", "eventStartTime",
+"gameStartTime")`. Hiçbiri yoksa (mevcut davranış korunarak) slug'ın
+kendisinin kodladığı başlangıç epoch'una düşülür. `_END_DATE_FIELDS`
+(`endDate`, `endTime`, `gameEndTime`) değiştirilmedi — `endDate` için
+eşdeğer bir hata gözlenmedi, varsayımla genişletilmedi.
+
+---
+
+## K-23 — Sessizlik eşikleri geçicidir, ölçümle sabitlenecek
+
+RTDS bağlantısı teknik olarak açık kalıp mesaj akışı durabilir (K-08'de
+bahsedilen `filters` biçimi hatası gibi bir abonelik sorunu sessizce
+tekrar oluşursa, bağlantı kopmadan hiç mesaj gelmeyebilir). Tek bir "N
+saniye sessizlik = yeniden bağlan" eşiği iki farklı ihtiyacı karıştırır:
+erken uyarı (kapsama/ölçüm için — sessizlik başladığını hemen bilmek
+istenir) ile geç toparlanma (gereksiz yeniden bağlanma churn'ünden
+kaçınmak istenir) aynı sayı olmak zorunda değil. Chainlink ve Binance
+relay'inin RTDS üzerindeki doğal mesajlar-arası yayın aralığı da farklı
+olabilir; ölçülmeden tek bir sabit seçmek erken uyarıyı ya çok geç ya
+da gereksiz sık tetikler.
+
+**Sonuç:** iki ayrı, topic başına ayarlanabilir eşik.
+`silence_warn_sec` aşılınca `RTDSClient` bir alert kuyruğuna yazar
+(`drain_alerts()`), bağlantı korunur — runner bunu her tick'te
+heartbeat'e `error` olarak yazar (K-06: boşluk da veridir). Yalnızca
+`silence_reconnect_sec` aşılınca bağlantı zorla kapatılıp yeniden
+kurulur (`PersistentWSClient.force_reconnect`); bu da heartbeat'e
+yazılır. Varsayılan: `silence_warn_sec=30`, `silence_reconnect_sec=120`
+— **bu sayılar geçicidir.** Chainlink/Binance topic'lerinin RTDS
+üzerindeki gerçek mesajlar-arası gecikme dağılımı hiç ölçülmedi.
+`scripts/probe.py`, 60 saniyelik bir dinleme penceresinde topic başına
+min/medyan/maks/sayı raporlayacak şekilde genişletildi; bu ölçüm
+alındığında eşikler gerçek dağılıma göre güncellenir, tahminle
+sabitlenmiş haliyle bırakılmaz.

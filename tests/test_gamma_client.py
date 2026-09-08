@@ -21,7 +21,12 @@ def _sample_event(**overrides):
         "conditionId": "0xabc123",
         "outcomes": json.dumps(["Up", "Down"]),
         "clobTokenIds": json.dumps(["111222", "333444"]),
-        "startDate": "2024-05-29T13:30:00Z",
+        # K-22: startDate serinin eski olusturulma tarihi -- turun
+        # baslangici DEGIL, artik open_ts adaylarinda yok. Bilerek
+        # startTime'dan FARKLI/eski birakildi: yanlislikla tekrar
+        # kullanilirsa asagidaki happy-path testi patlar.
+        "startDate": "2000-01-01T00:00:00Z",
+        "startTime": "2024-05-29T13:30:00Z",
         "endDate": "2024-05-29T13:35:00Z",
     }
     event.update(overrides)
@@ -34,6 +39,7 @@ def test_parse_event_response_happy_path():
     assert market.round_id == "btc-updown-5m-1717000200"
     assert market.condition_id == "0xabc123"
     assert market.token_ids == {"up": "111222", "down": "333444"}
+    # startTime'dan (K-22) -- startDate'in yanlis/eski degerinden DEGIL.
     assert market.open_ts_ms == 1716989400000
     assert market.close_ts_ms == 1716989700000
     assert market.raw["id"] == "evt-1"
@@ -47,10 +53,22 @@ def test_parse_event_response_empty_list_returns_none():
 def test_parse_event_response_falls_back_to_slug_epoch_when_no_dates():
     event = _sample_event()
     del event["startDate"]
+    del event["startTime"]
     del event["endDate"]
     market = parse_event_response([event], START_EPOCH_S)
     assert market.open_ts_ms == START_EPOCH_S * 1000
     assert market.close_ts_ms == (START_EPOCH_S + 300) * 1000
+
+
+def test_parse_event_response_ignores_start_date_even_when_present():
+    """K-22: startDate her zaman gorunse bile (silinmese bile) open_ts
+    icin hic kullanilmaz -- yalnizca startTime/eventStartTime denenir."""
+    event = _sample_event()
+    del event["startTime"]
+    market = parse_event_response([event], START_EPOCH_S)
+    # startTime yok, eventStartTime/gameStartTime de yok -> slug epoch'una
+    # duser; startDate'teki 2000-01-01 DEGERI HIC KULLANILMAZ.
+    assert market.open_ts_ms == START_EPOCH_S * 1000
 
 
 def test_parse_event_response_nested_markets_array():
