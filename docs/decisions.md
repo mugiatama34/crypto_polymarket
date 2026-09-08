@@ -232,3 +232,35 @@ kayıp serisi, çekilen para, hesap yaşı ve örneklem büyüklüğü yok.
 **Sonuç:** hiçbir dış kaynaklı performans iddiası bu projede referans,
 hedef veya doğrulama olarak kullanılmaz. Yalnızca kendi topladığımız veri
 sayılır.
+
+---
+
+## K-18 — Taşıma yolu runner içinde karşılaştırılır
+
+`observations[]`'a `transport` (`ws` \| `rest`) eklendi. Aynı `offset_sec`
+için birden fazla gözlem kaydı olabilir.
+
+Değerlendirilen alternatifler:
+
+- **(a) `longjob` hep `ws`, `cron` hep `rest` tutar.** Reddedildi — iki
+  değişken (`runner_id` ve `transport`) aynı anda değişmiş olur. İki
+  runner arasında bir fark görüldüğünde bunun kapsama/gecikme farkından mı
+  (K-07), yoksa taşıma yolu farkından mı geldiği ayırt edilemez.
+- **(b) İkisi de yalnızca `rest` tutar.** Reddedildi — WebSocket'in gerçek
+  kalitesi (gecikme, kapsama) hiç ölçülmemiş olurdu; K-08'de zaten RTDS
+  WebSocket'in `longjob` için mümkün, `cron` için REST'e düştüğü not
+  edilmişti, ama bunu doğrulamak için WebSocket verisi toplanması gerekir.
+
+**Seçilen:** her runner, her offset'te iki taşıma yolunu birden kaydeder.
+Böylece:
+
+- **Taşıma karşılaştırması** aynı runner içinde yapılır (kontrollü — tek
+  değişken `transport`).
+- **Runner karşılaştırması** (K-07) `rest` bacağı üzerinden yapılır
+  (kontrollü — tek değişken `runner_id`, çünkü her iki runner da `rest`
+  gözlemi tutar).
+
+**Sonuç:** `offset_sec` üzerinde tekillik varsayan hiçbir kısıt yok —
+şema veya doğrulayıcıda böyle bir kural varsa kaldırılır. `transport`
+zorunlu alandır; eksikse veya `ws`/`rest` dışında bir değer taşıyorsa
+satır reddedilir.

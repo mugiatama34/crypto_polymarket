@@ -48,8 +48,10 @@ yoğun: 135, 130, 125, 120, 115, 110, 105
 çapa:  60, 30, 10
 ```
 
-Tur başına 12 gözlem. Bir offset kaçırılırsa gözlem atlanmaz —
-`status: "missed"` ile yazılır.
+Tur başına, offset başına taşıma yolu sayısı kadar gözlem. Aynı
+`offset_sec` için birden fazla gözlem kaydı olabilir — biri `transport:
+"ws"`, biri `transport: "rest"` (bkz. 4.1). Bir offset bir taşıma
+yolunda kaçırılırsa o gözlem atlanmaz — `status: "missed"` ile yazılır.
 
 ---
 
@@ -83,6 +85,7 @@ Bir satır = bir 5 dakikalık market.
 | `response_ts` | int | Yanıtın alındığı zaman |
 | `runner_ts` | int | Yerel saat, çağrı öncesi |
 | `latency_ms` | int | `response_ts - runner_ts` |
+| `transport` | string | `ws` \| `rest` — bu gözlem hangi taşıma yoluyla alındı |
 | `book` | object | `{up: {...}, down: {...}}`, bkz. 4.1.1 |
 | `btc_binance` | object | Referans fiyat, bkz. 4.1.2 |
 | `btc_oracle` | object | Chainlink — çözüm kaynağı, bkz. 4.1.2 |
