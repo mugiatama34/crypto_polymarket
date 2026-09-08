@@ -1,0 +1,33 @@
+name: Uc problama (manuel)
+
+# Yalnizca elle tetiklenir. scripts/probe.py'yi calistirir; hicbir
+# dogrulama/abonelik/commit yapmaz, yalnizca gercek uclarin ham
+# yanitlarini kaydeder ve is ciktisi (artifact) olarak yukler.
+# Bu, longjob'un kendi zamanlanmis workflow'undan AYRIDIR (o baska bir
+# PR'da) -- burada veri toplama/commit YOK.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Problayi calistir
+        run: python -m scripts.probe
+
+      - name: Ciktilari yukle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-output
+          path: probe_output/
+          retention-days: 14

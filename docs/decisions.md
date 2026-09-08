@@ -139,8 +139,11 @@ Karar Binance fiyatına bakılarak veriliyor, market Chainlink oracle ile
 çözülüyor. Chainlink spot fiyatın 100-500 ms gerisinde olabiliyor ve turun
 son saniyelerinde ikisi ayrışabilir.
 
-**Sonuç:** `btc_binance` ve `btc_oracle` her gözlemde **ayrı ayrı**
+**Sonuç:** `btc_reference` ve `btc_oracle` her gözlemde **ayrı ayrı**
 kaydedilir. Biri diğerinden türetilmez, biri diğerinin yerine kullanılmaz.
+(Alan adı sonradan `btc_binance` → `btc_reference` olarak değişti çünkü
+REST bacağında referans fiyat Binance dışı borsalardan da gelebiliyor,
+bkz. K-19.)
 
 ---
 
@@ -264,3 +267,89 @@ Böylece:
 şema veya doğrulayıcıda böyle bir kural varsa kaldırılır. `transport`
 zorunlu alandır; eksikse veya `ws`/`rest` dışında bir değer taşıyorsa
 satır reddedilir.
+
+---
+
+## K-19 — REST bacağının referans borsası WS bacağıyla aynı olmayabilir
+
+WS bacağında `btc_reference`, Polymarket RTDS'in kendi Binance relay'idir
+(`source: rtds_binance`, `venue: polymarket_rtds`) — her zaman bu ikili.
+REST bacağında ise Binance'in genel API'si ABD merkezli IP'leri (GitHub
+Actions runner'ları dahil) 451 ile reddedebiliyor. Bu durumda toplayıcı
+Coinbase'e, o da olmazsa Kraken'e düşer.
+
+Sonuç: K-18'in "taşıma karşılaştırması tek değişkenlidir (transport)"
+varsayımı, borsa düşmesi tetiklendiğinde `btc_reference` için bozulabilir —
+o run'da hem `transport` hem referans borsa değişmiş olur. Bu gizli
+değildir: `venue` alanı hangi borsanın kullanıldığını doğrudan taşır
+(`binance`/`coinbase`/`kraken` REST bacağında, `polymarket_rtds` WS
+bacağında) — ayrıca her REST gözleminin `raw[]` girdisinde
+(`endpoint: binance_ticker|coinbase_ticker|kraken_ticker`) ve `job_start`
+heartbeat'inde özetlenir. `source` *nasıl* alındığını (`rest_poll`,
+`rtds_binance`, ...) anlatır, `venue` *kimden* alındığını — aynı
+`source: rest_poll` üç farklı `venue`'ye karşılık gelebildiği için ikisi
+ayrı tutulur (bkz. SCHEMA.md 4.1.2). Metrik katmanı, borsa düşmesi
+görülen run'ları `btc_reference` transport karşılaştırmasından `venue`
+alanına bakarak ayırt edip ayrı değerlendirmelidir.
+
+**Sonuç:** düşme sırası Binance → Coinbase → Kraken. Toplayıcı her job
+başlangıcında (round başına değil) bir kez problar ve o run boyunca aynı
+borsayı kullanır. Üçü de erişilemezse `btc_reference` REST gözlemi
+`{value: null, source: "none", venue: "none", feed_ts: null}` ile
+yazılır, atlanmaz.
+
+---
+
+## K-20 — latency_ms ve staleness_ms iki farklı gecikme kavramı ölçer
+
+`ws` ve `rest` bacakları aynı alanı (`latency_ms`) iki farklı şey için
+kullanıyordu: `rest`'te gerçek ağ turu, `ws`'te bellek içi cache
+kopyalama süresi (tipik olarak sub-ms, pratikte hep `0`). İkincisi
+uydurma bir sayı değil ama bilgi taşımıyor — `rest` satırlarının
+yanında duran gerçek, değişken RTT değerleriyle karşılaştırıldığında
+doldurulmamış/bozuk veri gibi okunuyor.
+
+Alternatif olarak `latency_ms`'i "feed bayatlığı" (`runner_ts - feed_ts`)
+anlamına çekmek de değerlendirildi, reddedildi — bu zaten K-10'da ayrı
+tutulan üç zaman damgasının (`venue_ts`, `btc_reference.feed_ts`,
+`btc_oracle.feed_ts`) hangisine karşılık geldiği belirsizleşir ve metrik
+katmanı `transport`'a bakarak alanın anlamını yeniden yorumlamak zorunda
+kalırdı.
+
+**Sonuç:** iki ayrı alan. `latency_ms` (`int | null`) yalnızca ağ turunu
+ölçer; `rest` bacağında dolu, `ws` bacağında anlamlı olmadığı için
+`null`. `staleness_ms` (`int | null`) veri tazeliğini ölçer:
+`response_ts - btc_reference.feed_ts`; `btc_reference.feed_ts` null ise
+(REST'in çoğu ucu zaman damgası döndürmüyor, bkz. K-10) `staleness_ms`
+da `null`. `btc_reference` seçildi çünkü karar bu fiyata bakılarak
+veriliyor (K-09) — operasyonel olarak en ilgili olan bu. İkisi de her
+zaman `observations[]` içinde zorunlu alan; eksik değil, `null` yazılır
+(K-06 — sessiz atlama yok).
+
+---
+
+## K-21 — Keşif yolu tur bazında raw[]'da, toplu görünürlük heartbeat'te
+
+Market keşfi iki yoldan biriyle olur (slug hızlı yol, listeleme yedek
+yol — bkz. K-15 sonrası eklenen `gamma_client.discover_round_market`).
+Hangi yolun kullanıldığı zaten her round kaydının `raw[]` girdisinde
+duruyor (`endpoint: gamma_event_slug` | `gamma_event_listing`) — bu
+kaybolmuyor, değişmiyor.
+
+Ama slug deseni bozulursa (Polymarket format değiştirirse, ör.) bunu
+fark etmenin tek yolu düzinelerce round kaydını açıp `raw[]` içindeki
+`endpoint` alanını tek tek okumak olurdu. Round bazlı bir alan bunun
+için yanlış yer: `discovery_method` her round'da zaten var, ayrıca bir
+round alanına taşımak tekrar (aynı bilginin iki yerde durması) ve
+şemayı büyütmek anlamına gelirdi.
+
+**Sonuç:** `job_end` heartbeat'ine iki sayaç eklendi:
+`discovery_slug_hits`, `discovery_listing_hits` (bkz. SCHEMA.md bölüm
+6). Round alanı eklenmedi çünkü tur bazında sorgulanacak bir şey değil
+— eğilim olarak izlenecek bir şey. Bu iki alan şemada **opsiyoneldir**:
+yalnızca `job_end`de bulunur, `job_start`/`tick`/`error` event'lerinde
+alan hiç yok (K-06'daki "null yazılır" deseninden farklı — burada alanın
+kendisi bu event'lerde anlamsız olduğu için hiç yer almıyor, `null` bile
+değil). Slug deseni bozulursa `discovery_listing_hits` job_end'de
+yükselir, tek satırda görünür; hangi round'ların etkilendiği gerekirse
+`raw[]`'a bakılır.

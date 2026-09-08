@@ -76,8 +76,8 @@
       "additionalProperties": false,
       "required": [
         "offset_sec", "offset_actual_sec", "venue_ts", "response_ts",
-        "runner_ts", "latency_ms", "transport", "book", "btc_binance",
-        "btc_oracle", "status", "error"
+        "runner_ts", "latency_ms", "staleness_ms", "transport", "book",
+        "btc_reference", "btc_oracle", "status", "error"
       ],
       "properties": {
         "offset_sec": { "type": "integer" },
@@ -85,7 +85,8 @@
         "venue_ts": { "type": "integer" },
         "response_ts": { "type": "integer" },
         "runner_ts": { "type": "integer" },
-        "latency_ms": { "type": "integer" },
+        "latency_ms": { "type": ["integer", "null"] },
+        "staleness_ms": { "type": ["integer", "null"] },
         "transport": { "enum": ["ws", "rest"] },
         "book": {
           "type": "object",
@@ -96,7 +97,7 @@
             "down": { "$ref": "#/$defs/book_side" }
           }
         },
-        "btc_binance": { "$ref": "#/$defs/oracle_feed" },
+        "btc_reference": { "$ref": "#/$defs/oracle_feed" },
         "btc_oracle": { "$ref": "#/$defs/oracle_feed" },
         "status": { "enum": ["ok", "partial", "missed", "error"] },
         "error": { "type": ["string", "null"] }
@@ -105,11 +106,14 @@
     "oracle_feed": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value", "source", "feed_ts"],
+      "required": ["value", "source", "venue", "feed_ts"],
       "properties": {
         "value": { "type": ["number", "null"] },
         "source": {
           "enum": ["rtds_chainlink", "rtds_binance", "rest_poll", "onchain", "none"]
+        },
+        "venue": {
+          "enum": ["binance", "coinbase", "kraken", "polymarket_rtds", "chainlink", "none"]
         },
         "feed_ts": { "type": ["integer", "null"] }
       },
@@ -119,13 +123,19 @@
           "then": {
             "properties": {
               "source": { "const": "none" },
+              "venue": { "const": "none" },
               "feed_ts": { "type": "null" }
             }
           }
         },
         {
           "if": { "properties": { "value": { "type": "number" } } },
-          "then": { "properties": { "source": { "not": { "const": "none" } } } }
+          "then": {
+            "properties": {
+              "source": { "not": { "const": "none" } },
+              "venue": { "not": { "const": "none" } }
+            }
+          }
         }
       ]
     },

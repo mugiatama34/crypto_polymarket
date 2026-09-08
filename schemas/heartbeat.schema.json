@@ -16,6 +16,8 @@
     "ts": { "type": "integer" },
     "rounds_seen": { "type": ["integer", "null"] },
     "rounds_missed": { "type": ["integer", "null"] },
-    "detail": { "type": ["string", "null"] }
+    "detail": { "type": ["string", "null"] },
+    "discovery_slug_hits": { "type": "integer" },
+    "discovery_listing_hits": { "type": "integer" }
   }
 }

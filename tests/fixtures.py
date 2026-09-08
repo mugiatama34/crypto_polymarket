@@ -17,7 +17,8 @@ VALID_ROUND = {
             "venue_ts": 1717000060000,
             "response_ts": 1717000060050,
             "runner_ts": 1717000060010,
-            "latency_ms": 40,
+            "latency_ms": None,
+            "staleness_ms": 50,
             "transport": "ws",
             "book": {
                 "up": {
@@ -41,14 +42,16 @@ VALID_ROUND = {
                     "mid": 0.47,
                 },
             },
-            "btc_binance": {
+            "btc_reference": {
                 "value": 67123.4,
                 "source": "rtds_binance",
+                "venue": "polymarket_rtds",
                 "feed_ts": 1717000060000,
             },
             "btc_oracle": {
                 "value": 67120.1,
                 "source": "rtds_chainlink",
+                "venue": "chainlink",
                 "feed_ts": 1717000059800,
             },
             "status": "ok",

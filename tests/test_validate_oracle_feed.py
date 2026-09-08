@@ -14,9 +14,9 @@ def test_valid_oracle_feed_passes():
     assert errors == []
 
 
-def test_null_value_with_source_none_is_valid():
+def test_null_value_with_source_none_and_venue_none_is_valid():
     record = copy.deepcopy(VALID_ROUND)
-    _obs(record)["btc_binance"] = {"value": None, "source": "none", "feed_ts": None}
+    _obs(record)["btc_reference"] = {"value": None, "source": "none", "venue": "none", "feed_ts": None}
     ok, errors = validate(record, "round")
     assert ok is True
     assert errors == []
@@ -24,7 +24,24 @@ def test_null_value_with_source_none_is_valid():
 
 def test_value_present_with_source_none_is_rejected():
     record = copy.deepcopy(VALID_ROUND)
-    _obs(record)["btc_binance"] = {"value": 67000.0, "source": "none", "feed_ts": 1717000060000}
+    _obs(record)["btc_reference"] = {
+        "value": 67000.0,
+        "source": "none",
+        "venue": "binance",
+        "feed_ts": 1717000060000,
+    }
+    ok, errors = validate(record, "round")
+    assert ok is False
+
+
+def test_value_present_with_venue_none_is_rejected():
+    record = copy.deepcopy(VALID_ROUND)
+    _obs(record)["btc_reference"] = {
+        "value": 67000.0,
+        "source": "rest_poll",
+        "venue": "none",
+        "feed_ts": None,
+    }
     ok, errors = validate(record, "round")
     assert ok is False
 
@@ -34,6 +51,19 @@ def test_unknown_source_is_rejected():
     _obs(record)["btc_oracle"] = {
         "value": 67000.0,
         "source": "binance_ws",
+        "venue": "chainlink",
+        "feed_ts": 1717000060000,
+    }
+    ok, errors = validate(record, "round")
+    assert ok is False
+
+
+def test_unknown_venue_is_rejected():
+    record = copy.deepcopy(VALID_ROUND)
+    _obs(record)["btc_oracle"] = {
+        "value": 67000.0,
+        "source": "rtds_chainlink",
+        "venue": "some_other_oracle",
         "feed_ts": 1717000060000,
     }
     ok, errors = validate(record, "round")
@@ -42,14 +72,26 @@ def test_unknown_source_is_rejected():
 
 def test_null_value_with_source_none_and_nonnull_feed_ts_is_rejected():
     record = copy.deepcopy(VALID_ROUND)
-    _obs(record)["btc_binance"] = {"value": None, "source": "none", "feed_ts": 1234}
+    _obs(record)["btc_reference"] = {"value": None, "source": "none", "venue": "none", "feed_ts": 1234}
     ok, errors = validate(record, "round")
     assert ok is False
 
 
 def test_value_present_with_null_feed_ts_is_valid():
     record = copy.deepcopy(VALID_ROUND)
-    _obs(record)["btc_oracle"] = {"value": 67000.0, "source": "rest_poll", "feed_ts": None}
+    _obs(record)["btc_oracle"] = {
+        "value": 67000.0,
+        "source": "rest_poll",
+        "venue": "binance",
+        "feed_ts": None,
+    }
     ok, errors = validate(record, "round")
     assert ok is True
     assert errors == []
+
+
+def test_missing_venue_field_is_rejected():
+    record = copy.deepcopy(VALID_ROUND)
+    _obs(record)["btc_reference"] = {"value": None, "source": "none", "feed_ts": None}
+    ok, errors = validate(record, "round")
+    assert ok is False
