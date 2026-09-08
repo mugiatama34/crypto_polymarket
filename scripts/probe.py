@@ -21,7 +21,9 @@ Kullanim:
 
 Cikti: probe_output/<UTC-ISO-zaman>/*.json + summary.json. Gercek
 gozlem verisiyle (`data/`) karistirilmasin diye ayri bir dizin --
-git'e commit edilmez (bkz. .gitignore).
+repoya commit edilir (bkz. .github/workflows/probe.yml) ama
+SCHEMA.md'deki sozlesme kapsamina girmez: dogrulanmamis ham prob
+ciktisidir, `data/` altindaki gozlem akisiyla karistirilmamali.
 """
 
 import asyncio
