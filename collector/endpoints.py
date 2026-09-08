@@ -9,6 +9,12 @@ eklenir (bkz. CLAUDE.md "Çalışma şekli").
 GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
 GAMMA_EVENTS_PATH = "/events"
 
+# GAMMA_EVENTS_PATH deprecated (bkz. docs/decisions.md K-24) -- yanıtın
+# kendi `Warning` header'ı halef olarak bunu işaret ediyor, tahmin değil.
+# Yalnızca scripts/probe.py'de ölçüm için kullanılır; hiçbir üretim
+# kodu (gamma_client.py) buna geçirilmedi.
+GAMMA_EVENTS_KEYSET_PATH = "/events/keyset"
+
 # CLOB REST — sipariş defteri. Kaynak: py-clob-client (py_clob_client/endpoints.py,
 # client.py) — GET_ORDER_BOOK = "/book", query param "token_id".
 CLOB_REST_BASE_URL = "https://clob.polymarket.com"

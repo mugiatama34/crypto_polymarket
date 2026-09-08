@@ -11,7 +11,15 @@ import json
 import httpx
 import pytest
 
-from scripts.probe import _extract_first_token_id, _probe_http, _probe_rtds, _write_json
+from scripts.probe import (
+    _compare_event_shapes,
+    _deprecation_notice,
+    _extract_first_token_id,
+    _field_presence,
+    _probe_http,
+    _probe_rtds,
+    _write_json,
+)
 
 
 def _sample_event():
@@ -104,3 +112,66 @@ async def test_probe_rtds_connection_failure_is_captured():
     result = await _probe_rtds(connect_fn=connect_fn)
     assert result["connected"] is False
     assert "nope" in result["error"]
+
+
+def test_deprecation_notice_extracts_header_hits_case_insensitively():
+    result = {
+        "headers": {
+            "Deprecation": "true",
+            "Sunset": "Fri, 01 May 2026 00:00:00 GMT",
+            "Warning": '299 - "use /events/keyset"',
+            "content-type": "application/json",
+        },
+        "body_text": "[]",
+    }
+    notice = _deprecation_notice(result)
+    assert notice["in_headers"] == {
+        "Deprecation": "true",
+        "Sunset": "Fri, 01 May 2026 00:00:00 GMT",
+        "Warning": '299 - "use /events/keyset"',
+    }
+    assert notice["in_body"] is None
+
+
+def test_deprecation_notice_finds_keyword_in_body_when_no_headers():
+    result = {"headers": {}, "body_text": "this endpoint is deprecated, see /events/keyset"}
+    notice = _deprecation_notice(result)
+    assert notice["in_headers"] == {}
+    assert "deprecated" in notice["in_body"]
+
+
+def test_deprecation_notice_handles_missing_headers_and_body():
+    assert _deprecation_notice({}) == {"in_headers": {}, "in_body": None}
+
+
+def test_field_presence_reports_top_level_and_market_fields():
+    event = {
+        "slug": "btc-updown-5m-1",
+        "startTime": "2026-09-08T18:30:00Z",
+        "markets": [{"conditionId": "0xabc"}],
+    }
+    presence = _field_presence(event)
+    assert presence["slug"] is True
+    assert presence["ticker"] is False
+    assert presence["startTime"] is True
+    assert presence["markets[0].conditionId"] is True
+    assert presence["markets[0].clobTokenIds"] is False
+
+
+def test_field_presence_non_dict_event_returns_empty():
+    assert _field_presence(None) == {}
+
+
+def test_compare_event_shapes_reports_found_and_field_presence():
+    classic = {
+        "name": "gamma_slug",
+        "status_code": 200,
+        "body_json": [{"slug": "s", "startTime": "t", "markets": [{"conditionId": "0x1"}]}],
+    }
+    keyset = {"name": "gamma_keyset_slug", "status_code": 200, "body_json": []}
+
+    comparison = _compare_event_shapes(classic, keyset)
+    assert comparison["classic_event_found"] is True
+    assert comparison["keyset_event_found"] is False
+    assert comparison["field_presence"]["classic"]["slug"] is True
+    assert comparison["field_presence"]["keyset"] == {}

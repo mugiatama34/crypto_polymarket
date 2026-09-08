@@ -15,7 +15,9 @@ kararlarinin dayandigi varsayimlari gercek uclara karsi tek seferlik
 dogrulamak (bkz. docs/decisions.md K-19/K-22/K-23, gamma_client.py modul
 docstring'i). Bu sandbox'ta gercek aga erisim engelliydi; bu script'i
 calistiran ortamda (yerel makine veya .github/workflows/probe.yml)
-erisim var.
+erisim var. Ayrica /events'in deprecation isaretini ve halefi
+/events/keyset'in yanit seklini olcer (bkz. docs/decisions.md K-24) --
+bu da uretime baglanmaz, yalnizca kaydedilir.
 
 Kullanim:
     python -m scripts.probe
@@ -46,6 +48,7 @@ from collector.endpoints import (
     CLOB_REST_BASE_URL,
     COINBASE_TICKER_URL,
     GAMMA_BASE_URL,
+    GAMMA_EVENTS_KEYSET_PATH,
     GAMMA_EVENTS_PATH,
     KRAKEN_TICKER_URL,
     RTDS_PING_INTERVAL_SEC,
@@ -111,6 +114,70 @@ async def _probe_http(
         result["body_json"] = None
         result["error"] = f"{type(exc).__name__}: {exc}"
     return result
+
+
+_DEPRECATION_HEADER_NAMES = ("deprecation", "sunset", "warning")
+_DEPRECATION_BODY_KEYWORDS = ("deprecat", "sunset", "keyset")
+
+
+def _deprecation_notice(result: dict) -> dict:
+    """Bir /events-ailesi prob sonucunda deprecation isaretinin nerede
+    gorundugunu (header mi, govde mi) ve tam metnini cikarir (bkz.
+    docs/decisions.md K-24). Header'lar zaten `result["headers"]`'ta
+    duruyor -- bu yalnizca ilgili ucunu one cikarir, yeniden istek
+    atmaz."""
+    headers = result.get("headers") or {}
+    header_hits = {k: v for k, v in headers.items() if k.lower() in _DEPRECATION_HEADER_NAMES}
+
+    body_text = result.get("body_text") or ""
+    lowered = body_text.lower()
+    body_hit = next((body_text[:500] for kw in _DEPRECATION_BODY_KEYWORDS if kw in lowered), None)
+
+    return {"in_headers": header_hits, "in_body": body_hit}
+
+
+_COMPARISON_EVENT_FIELDS = ("slug", "ticker", "startDate", "startTime", "eventStartTime", "endDate", "endTime")
+_COMPARISON_MARKET_FIELDS = ("conditionId", "clobTokenIds", "outcomes")
+
+
+def _first_event(body_json) -> Optional[dict]:
+    if isinstance(body_json, list) and body_json:
+        return body_json[0]
+    return None
+
+
+def _field_presence(event: Optional[dict]) -> dict:
+    """Bir event'te (K-22/K-24 karsilastirmasi icin) izlenen alan
+    adlarinin var olup olmadigini isaretler -- deger degil, yalnizca
+    varlik. /events ve /events/keyset ayni alan adlarini mi kullaniyor
+    sorusuna cevap vermek icin."""
+    if not isinstance(event, dict):
+        return {}
+    markets = event.get("markets")
+    market = markets[0] if isinstance(markets, list) and markets else {}
+    presence = {name: name in event for name in _COMPARISON_EVENT_FIELDS}
+    presence.update({f"markets[0].{name}": name in market for name in _COMPARISON_MARKET_FIELDS})
+    return presence
+
+
+def _compare_event_shapes(classic_result: dict, keyset_result: dict) -> dict:
+    """Ayni turu hedefleyen klasik /events prob'u ile /events/keyset
+    prob'unu yan yana koyar -- K-24: gecis kararindan once alan
+    adlarinin karsilastirilabilir olup olmadigini gormek icin."""
+    classic_event = _first_event(classic_result.get("body_json"))
+    keyset_event = _first_event(keyset_result.get("body_json"))
+    return {
+        "classic_probe": classic_result.get("name"),
+        "keyset_probe": keyset_result.get("name"),
+        "classic_status": classic_result.get("status_code"),
+        "keyset_status": keyset_result.get("status_code"),
+        "classic_event_found": classic_event is not None,
+        "keyset_event_found": keyset_event is not None,
+        "field_presence": {
+            "classic": _field_presence(classic_event),
+            "keyset": _field_presence(keyset_event),
+        },
+    }
 
 
 def _subscription_message(topics_and_types: list) -> str:
@@ -394,6 +461,53 @@ async def _run() -> dict:
         # gercek yanitla gorup gamma_client.py'yi SONRA (bu prob ciktisi
         # okunduktan sonra) guncellemek.
         now_iso = datetime.now(timezone.utc).isoformat()
+
+        # 2c) /events/keyset -- K-24: /events yaniti "deprecation: true,
+        # sunset: <gecmis tarih>, warning: use /events/keyset" donuyor.
+        # Bu problar SADECE yanit seklini olcer -- hicbir uretim kodu
+        # (gamma_client.py) buraya gecirilmedi, gecis ayri bir is (bkz.
+        # docs/decisions.md K-24). Parametreler ADAY: keyset semasi
+        # (cursor mu, offset mi, hangi filtreler) dogrulanmadi.
+        keyset_slug_result = await _probe_http(
+            client,
+            "gamma_keyset_slug",
+            "GET",
+            f"{GAMMA_BASE_URL}{GAMMA_EVENTS_KEYSET_PATH}",
+            params={"slug": target_slug},
+        )
+        results.append(keyset_slug_result)
+        _write_json(run_dir / "gamma_keyset_slug.json", keyset_slug_result)
+
+        keyset_listing_result = await _probe_http(
+            client,
+            "gamma_keyset_listing",
+            "GET",
+            f"{GAMMA_BASE_URL}{GAMMA_EVENTS_KEYSET_PATH}",
+            params={"active": "true", "closed": "false", "limit": 100},
+        )
+        results.append(keyset_listing_result)
+        _write_json(run_dir / "gamma_keyset_listing.json", keyset_listing_result)
+
+        keyset_listing_end_date_result = await _probe_http(
+            client,
+            "gamma_keyset_listing_end_date_min",
+            "GET",
+            f"{GAMMA_BASE_URL}{GAMMA_EVENTS_KEYSET_PATH}",
+            params={"active": "true", "closed": "false", "end_date_min": now_iso, "limit": 100},
+        )
+        results.append(keyset_listing_end_date_result)
+        _write_json(
+            run_dir / "gamma_keyset_listing_end_date_min.json", keyset_listing_end_date_result
+        )
+
+        # /events (klasik) ile /events/keyset yanitlarini ayni turlar
+        # icin yan yana koyar -- K-24: alan adlari karsilastirilabilir mi.
+        keyset_comparison = {
+            "slug_vs_keyset_slug": _compare_event_shapes(slug_result, keyset_slug_result),
+            "listing_vs_keyset_listing": _compare_event_shapes(listing_result, keyset_listing_result),
+        }
+        _write_json(run_dir / "keyset_comparison.json", keyset_comparison)
+
         candidate_params = {
             "gamma_listing_order_enddate_asc": {
                 "active": "true",
@@ -484,6 +598,7 @@ async def _run() -> dict:
         "run_dir": str(run_dir),
         "target_slug": target_slug,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "keyset_comparison_path": str(run_dir / "keyset_comparison.json"),
         "probes": [
             {
                 "name": r.get("name"),
@@ -495,6 +610,11 @@ async def _run() -> dict:
                 ),
                 "status_code": r.get("status_code"),
                 "error": r.get("error"),
+                **(
+                    {"deprecation_notice": _deprecation_notice(r)}
+                    if not r.get("skipped") and (r.get("name") or "").startswith("gamma_")
+                    else {}
+                ),
             }
             for r in results
         ],
