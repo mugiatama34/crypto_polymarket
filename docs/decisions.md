@@ -405,3 +405,42 @@ yazılır. Varsayılan: `silence_warn_sec=30`, `silence_reconnect_sec=120`
 min/medyan/maks/sayı raporlayacak şekilde genişletildi; bu ölçüm
 alındığında eşikler gerçek dağılıma göre güncellenir, tahminle
 sabitlenmiş haliyle bırakılmaz.
+
+---
+
+## K-24 — `/events` deprecated işaretli; risk bilinir ve izlenir, geçiş yok
+
+Prob koşumu `probe_output/20260908T182954Z`'de hem `gamma_slug` hem
+`gamma_listing` yanıtının HTTP header'larında şu üçlü aynen bulundu
+(ikisinde de birebir aynı, `cf-cache-status: HIT` olmasına rağmen —
+yani önbellek gürültüsü değil):
+
+```
+deprecation: true
+sunset: Fri, 01 May 2026 00:00:00 GMT
+warning: 299 - "use /events/keyset"
+```
+
+`sunset` tarihi (2026-05-01) prob koşum tarihinden (2026-09-08) önce —
+yani uç, ilan edilmiş kapanış tarihini çoktan geçmiş olmasına rağmen
+hâlâ 200 ile yanıt veriyor. Bu iki üretim yolunu da ilgilendiriyor:
+`gamma_client.fetch_round_market` (slug, birincil keşif) ve
+`fetch_round_market_via_listing` (yedek yol) ikisi de `GAMMA_EVENTS_PATH
+= "/events"` üzerinden çalışıyor. Uç bir gün gerçekten kapatılırsa
+keşif tamamen durur ve toplayıcı sessizce boş toplar (round'lar
+`status: "missed"` ile yazılır ama neden hepsi kaçırılmaya başladığını
+anlamak için önce burası akla gelmeli).
+
+Halef olarak `warning` header'ının kendisi `/events/keyset`'i işaret
+ediyor — bu bir tahmin değil, Polymarket'in kendi yanıtından alınan
+birebir metin. Ama yanıt şekli (hangi query parametreleri geçerli,
+alan adları `/events` ile aynı mı) doğrulanmadı.
+
+**Sonuç:** Şimdilik `/events`'te kalınır, hiçbir kod `/events/keyset`'e
+geçirilmez. `scripts/probe.py`'ye `/events/keyset`'i aday parametrelerle
+prob eden ayrı, üretime bağlanmayan problar eklendi (aynı `_run`
+içinde, `/events` problarıyla yan yana) — amaç yanıt şeklini ölçmek.
+Geçiş (varsa) ayrı bir PR'da, bu ölçüm sonucu okunduktan sonra ele
+alınır. Bu bilinen ve izlenen bir risktir, keşfedilmemiş bir boşluk
+değil — CLAUDE.md'nin "tahmin üretme, sor" kuralı burada "ölç, sonra
+karar ver" olarak uygulanıyor.
