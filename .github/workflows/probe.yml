@@ -1,12 +1,17 @@
 name: Uc problama (manuel)
 
 # Yalnizca elle tetiklenir. scripts/probe.py'yi calistirir; hicbir
-# dogrulama/abonelik/commit yapmaz, yalnizca gercek uclarin ham
-# yanitlarini kaydeder ve is ciktisi (artifact) olarak yukler.
+# dogrulama/abonelik yapmaz, yalnizca gercek uclarin ham yanitlarini
+# kaydeder. Ciktiyi hem is ciktisi (artifact) olarak yukler hem de
+# probe_output/ altina repoya commit+push eder (ham prob ciktisi,
+# SCHEMA.md kapsaminda degil -- bkz. scripts/probe.py docstring).
 # Bu, longjob'un kendi zamanlanmis workflow'undan AYRIDIR (o baska bir
-# PR'da) -- burada veri toplama/commit YOK.
+# PR'da) -- burada gozlem verisi toplama YOK, yalnizca prob ciktisi.
 on:
   workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
   probe:
@@ -31,3 +36,29 @@ jobs:
           name: probe-output
           path: probe_output/
           retention-days: 14
+
+      - name: probe_output'u commit et ve push'la
+        if: always()
+        run: |
+          set -e
+          if [ ! -d probe_output ] || [ -z "$(ls -A probe_output 2>/dev/null)" ]; then
+            echo "probe_output/ bos veya yok, commit atlanacak."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_output/
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "probe: $(date -u +%Y-%m-%dT%H:%M:%SZ) calistirmasinin ham ciktisi"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1
