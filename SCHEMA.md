@@ -84,17 +84,22 @@ Bir satır = bir 5 dakikalık market.
 | `venue_ts` | int | API'nin bildirdiği zaman |
 | `response_ts` | int | Yanıtın alındığı zaman |
 | `runner_ts` | int | Yerel saat, çağrı öncesi |
-| `latency_ms` | int | `response_ts - runner_ts` |
+| `latency_ms` | int \| null | `response_ts - runner_ts` — **ağ turu süresi**. `rest` bacağında gerçek RTT; `ws` bacağında anlamlı değil (cache kopyalama sub-ms sürer), `null` yazılır. |
+| `staleness_ms` | int \| null | `response_ts - btc_reference.feed_ts` — verinin kaydedildiği andaki yaşı. `btc_reference.feed_ts` null ise (ör. çoğu REST bacağı) `null`. |
 | `transport` | string | `ws` \| `rest` — bu gözlem hangi taşıma yoluyla alındı |
 | `book` | object | `{up: {...}, down: {...}}`, bkz. 4.1.1 |
-| `btc_binance` | object | Referans fiyat, bkz. 4.1.2 |
+| `btc_reference` | object | Referans fiyat (Binance ve fallback borsaları), bkz. 4.1.2 |
 | `btc_oracle` | object | Chainlink — çözüm kaynağı, bkz. 4.1.2 |
 | `status` | string | `ok` \| `partial` \| `missed` \| `error` |
 | `error` | string \| null | Varsa hata metni |
 
 > Not: `venue_ts`, defterin (CLOB) zaman damgasıdır. Fiyat feed'lerinin
-> kendi zaman damgaları ayrı ayrı `btc_binance.feed_ts` /
+> kendi zaman damgaları ayrı ayrı `btc_reference.feed_ts` /
 > `btc_oracle.feed_ts` içindedir — bkz. 4.1.2.
+
+> Not: `latency_ms` ve `staleness_ms` iki farklı gecikme kavramını
+> ölçer — biri ağ turu (yalnızca `rest`), diğeri veri tazeliği (her iki
+> bacak, feed zaman damgası varsa). Gerekçe: docs/decisions.md K-20.
 
 #### 4.1.1 `book` (her token için)
 
@@ -118,19 +123,29 @@ Sıra garantilidir: `index 0` = en iyi fiyat seviyesi (best). Defterde
 zorundadır. Doğrulayıcı bu tutarlılığı kontrol eder; uyuşmazsa satır
 reddedilir.
 
-#### 4.1.2 `btc_binance` / `btc_oracle`
+#### 4.1.2 `btc_reference` / `btc_oracle`
 
 | Alan | Tip | Not |
 |---|---|---|
 | `value` | float \| null | Fiyat. `null` ise feed'ten okunamadı. |
-| `source` | string | `rtds_chainlink` \| `rtds_binance` \| `rest_poll` \| `onchain` \| `none` |
+| `source` | string | `rtds_chainlink` \| `rtds_binance` \| `rest_poll` \| `onchain` \| `none` — **taşıma yolu** (bu sayıyı nasıl aldık) |
+| `venue` | string | `binance` \| `coinbase` \| `kraken` \| `polymarket_rtds` \| `chainlink` \| `none` — **kaynak** (bu sayı hangi borsa/oracle'dan) |
 | `feed_ts` | int \| null | Feed'in kendi bildirdiği zaman — bizim `response_ts`'imiz değil. Oracle gecikmesini ölçmenin tek yolu bu. |
+
+`source` *nasıl* aldığımızı, `venue` *kimden* aldığımızı anlatır — ikisi
+birlikte tutulur çünkü aynı `source` (`rest_poll`) farklı `venue`'lere
+karşılık gelebilir (bkz. K-19 borsa fallback'i). `ws` bacağında
+`btc_reference` için `venue: "polymarket_rtds"` — RTDS'in kendi Binance
+relay'idir, doğrudan borsa bağlantısı değildir; `btc_oracle` için
+`venue: "chainlink"`. `rest` bacağında `btc_reference` için `venue`,
+fiilen kullanılan borsadır (`binance`/`coinbase`/`kraken`); `btc_oracle`
+bu fazda REST üzerinden hiç alınmıyor, her zaman `value: null`.
 
 Tutarlılık kuralları:
 
-- `value: null` ⟺ `source: "none"` ve `feed_ts: null`. Değer yoksa
-  kaynak ve zaman damgası da yoktur.
-- `value` doluysa `source` `"none"` olamaz.
+- `value: null` ⟺ `source: "none"` ve `venue: "none"` ve `feed_ts: null`.
+  Değer yoksa kaynak, borsa ve zaman damgası da yoktur.
+- `value` doluysa `source` ve `venue` `"none"` olamaz.
 - `feed_ts: null` ile `value` dolu olması geçerlidir — bazı REST uçları
   zaman damgası döndürmez (`source: "rest_poll"` tipik örnek). Bu
   bilinçli bir gevşeklik; katılaştırmadan önce burayı tartışmaya aç.

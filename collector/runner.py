@@ -98,7 +98,7 @@ class LongjobRunner:
 
     async def _run_round(self, market) -> dict:
         observations = []
-        raw = [{"endpoint": "gamma_event", "payload": market.raw}]
+        raw = [{"endpoint": f"gamma_event_{market.discovery_method}", "payload": market.raw}]
 
         for offset_sec in OFFSETS_SEC:
             target_ms = offset_target_ts_ms(market.close_ts_ms, offset_sec)
@@ -153,7 +153,7 @@ class LongjobRunner:
     async def _process_one_round(self, round_start_s: int) -> None:
         market = None
         try:
-            market = await gamma_client.fetch_round_market(self.http_client, round_start_s)
+            market = await gamma_client.discover_round_market(self.http_client, round_start_s)
         except Exception as exc:  # noqa: BLE001 -- ag/parse hatasi round'u dusurmez, missed sayilir
             self.heartbeat.error(f"gamma fetch basarisiz round={round_slug(round_start_s)}: {exc}")
 

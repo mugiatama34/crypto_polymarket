@@ -1,13 +1,23 @@
-"""Gamma API'den deterministik slug ile market kesfi.
+"""Gamma API'den market kesfi: iki yol.
 
-Round zamanlamasi 300s'e hizali ve onceden bilinir (round_calendar), bu
-yuzden seri/tag enumerasyonu yerine dogrudan slug ile sorgulanir:
-GET {GAMMA_BASE_URL}/events?slug=btc-updown-5m-<epoch>.
+1. **slug** (hizli yol): round zamanlamasi 300s'e hizali ve onceden
+   bilindigi icin dogrudan GET {GAMMA_BASE_URL}/events?slug=btc-updown-5m-<epoch>
+   sorgulanir. Slug deseni (SCHEMA.md round_id ornegiyle tutarli) birincil
+   Polymarket kaynagindan tam teyit edilemedi.
+2. **listing** (yedek yol): slug bulunamazsa -- desen yanlissa veya
+   market henuz/artik o slug'la listelenmiyorsa -- Gamma'nin dogrulanmis
+   `active`/`closed`/`order`/`ascending`/`limit`/`offset` parametreleriyle
+   sayfalanarak listelenir, `btc-updown-5m-` on ekiyle baslayan event'ler
+   arasindan close_ts'i bizim hesapladigimiz hedefe (round_start_s+300s)
+   esit olan secilir. Bu yol slug deseni tamamen yanlis olsa bile
+   calisir, ama daha yavastir (birden fazla sayfa cekebilir).
 
-Slug deseni (SCHEMA.md round_id ornegiyle tutarli) birincil Polymarket
-kaynagindan tam teyit edilemedi. Yanlissa istek bos liste dondurur, market
-bulunamaz sayilir; cagiran taraf (sampler/runner) round'u
-`status: "missed"` ile yazar, sessizce dusurulmez.
+Hangi yolun kullanildigi `RoundMarket.discovery_method` alaninda durur
+("slug" | "listing"); cagiran taraf (runner.py) bunu round kaydinin
+`raw[]` girdisine etiket olarak yazar.
+
+Her iki yolda da bulunamazsa None doner; cagiran taraf (sampler/runner)
+round'u `status: "missed"` ile yazar, sessizce dusurulmez.
 
 open_ts/close_ts icin Gamma yanitinda taninan bir tarih alani varsa o
 kullanilir; yoksa slug'in kendisinin kodladigi baslangic epoch'una (ve
@@ -28,6 +38,9 @@ from .round_calendar import ROUND_SECONDS, round_slug
 
 _START_DATE_FIELDS = ("startDate", "startTime", "gameStartTime")
 _END_DATE_FIELDS = ("endDate", "endTime", "gameEndTime")
+_SLUG_PREFIX = "btc-updown-5m-"
+_LISTING_PAGE_SIZE = 100
+_LISTING_MAX_PAGES = 5
 
 
 class MarketParseError(Exception):
@@ -44,15 +57,16 @@ class RoundMarket:
     open_ts_ms: int
     close_ts_ms: int
     raw: dict
+    discovery_method: str = "slug"
 
 
-def _parse_json_array_field(market: dict, field: str) -> list:
-    value = market.get(field)
+def _parse_json_array_field(market: dict, field_name: str) -> list:
+    value = market.get(field_name)
     if isinstance(value, str):
         return json.loads(value)
     if isinstance(value, list):
         return value
-    raise MarketParseError(f"'{field}' alani bulunamadi veya beklenmeyen tipte", market)
+    raise MarketParseError(f"'{field_name}' alani bulunamadi veya beklenmeyen tipte", market)
 
 
 def _extract_token_ids(market: dict) -> dict:
@@ -83,8 +97,8 @@ def _parse_iso_ms(value: str) -> Optional[int]:
 
 
 def _extract_ts_ms(market: dict, fields: tuple, fallback_ms: int) -> int:
-    for field in fields:
-        raw_value = market.get(field)
+    for field_name in fields:
+        raw_value = market.get(field_name)
         if isinstance(raw_value, str):
             parsed = _parse_iso_ms(raw_value)
             if parsed is not None:
@@ -103,16 +117,16 @@ def _select_market_object(event: dict) -> dict:
     return event
 
 
-def parse_event_response(events: list, start_epoch_s: int) -> Optional[RoundMarket]:
-    """Gamma /events?slug=... yanitini RoundMarket'e cevirir.
-
-    Bos liste -> market bulunamadi (None). `raw` her zaman event'in kendisi,
-    degistirilmeden.
-    """
-    if not events:
+def _epoch_from_slug(slug: str, prefix: str = _SLUG_PREFIX) -> Optional[int]:
+    if not slug or not slug.startswith(prefix):
+        return None
+    try:
+        return int(slug[len(prefix):])
+    except ValueError:
         return None
 
-    event = events[0]
+
+def _build_round_market(event: dict, start_epoch_s: int, *, discovery_method: str) -> RoundMarket:
     market = _select_market_object(event)
 
     condition_id = market.get("conditionId")
@@ -133,10 +147,23 @@ def parse_event_response(events: list, start_epoch_s: int) -> Optional[RoundMark
         open_ts_ms=open_ts_ms,
         close_ts_ms=close_ts_ms,
         raw=event,
+        discovery_method=discovery_method,
     )
 
 
+def parse_event_response(events: list, start_epoch_s: int) -> Optional[RoundMarket]:
+    """Gamma /events?slug=... yanitini RoundMarket'e cevirir.
+
+    Bos liste -> market bulunamadi (None). `raw` her zaman event'in kendisi,
+    degistirilmeden.
+    """
+    if not events:
+        return None
+    return _build_round_market(events[0], start_epoch_s, discovery_method="slug")
+
+
 async def fetch_round_market(client: httpx.AsyncClient, start_epoch_s: int) -> Optional[RoundMarket]:
+    """Hizli yol: dogrudan slug ile sorgular."""
     slug = round_slug(start_epoch_s)
     response = await client.get(
         f"{GAMMA_BASE_URL}{GAMMA_EVENTS_PATH}",
@@ -145,3 +172,74 @@ async def fetch_round_market(client: httpx.AsyncClient, start_epoch_s: int) -> O
     response.raise_for_status()
     events = response.json()
     return parse_event_response(events, start_epoch_s)
+
+
+async def fetch_round_market_via_listing(
+    client: httpx.AsyncClient,
+    start_epoch_s: int,
+    *,
+    page_size: int = _LISTING_PAGE_SIZE,
+    max_pages: int = _LISTING_MAX_PAGES,
+) -> Optional[RoundMarket]:
+    """Yedek yol: aktif/kapanmamis event'leri sayfalayarak listeler,
+    `btc-updown-5m-` on ekiyle baslayan slug'lar arasindan close_ts'i
+    bizim hedefimize (start_epoch_s + 300s) esit olani secer.
+
+    Sadece resmi olarak dogrulanmis Gamma parametreleri kullanilir
+    (active, closed, order, ascending, limit, offset) -- dogrulanmamis
+    bir seri/tag filtresi varsayilmiyor (bkz. modul docstring'i).
+    """
+    target_close_ms = (start_epoch_s + ROUND_SECONDS) * 1000
+    offset = 0
+
+    for _page in range(max_pages):
+        response = await client.get(
+            f"{GAMMA_BASE_URL}{GAMMA_EVENTS_PATH}",
+            params={
+                "active": "true",
+                "closed": "false",
+                "order": "startDate",
+                "ascending": "true",
+                "limit": page_size,
+                "offset": offset,
+            },
+        )
+        response.raise_for_status()
+        events = response.json()
+        if not events:
+            break
+
+        for event in events:
+            slug = event.get("slug") or ""
+            candidate_epoch = _epoch_from_slug(slug)
+            if candidate_epoch is None:
+                continue
+
+            candidate_market = _select_market_object(event)
+            candidate_close_ms = _extract_ts_ms(
+                candidate_market, _END_DATE_FIELDS, (candidate_epoch + ROUND_SECONDS) * 1000
+            )
+            if candidate_close_ms == target_close_ms:
+                return _build_round_market(event, start_epoch_s, discovery_method="listing")
+
+        if len(events) < page_size:
+            break
+        offset += page_size
+
+    return None
+
+
+async def discover_round_market(client: httpx.AsyncClient, start_epoch_s: int) -> Optional[RoundMarket]:
+    """Once slug ile dener (hizli yol); bulunamazsa VEYA hata verirse
+    listeleme + close_ts eslesmesine duser (bkz. modul docstring'i).
+    Hizli yoldaki bir hata (ag, parse) sessizce yedek yola devrediyor --
+    yalnizca yedek yol da basarisiz olursa cagirana hata/None gorunur.
+    Hangi yolun kullanildigi donen RoundMarket.discovery_method'ta durur.
+    """
+    try:
+        market = await fetch_round_market(client, start_epoch_s)
+    except Exception:  # noqa: BLE001 -- hizli yol hatasi yedek yola dusurur
+        market = None
+    if market is not None:
+        return market
+    return await fetch_round_market_via_listing(client, start_epoch_s)

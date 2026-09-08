@@ -80,9 +80,14 @@ async def test_build_ws_observation_all_present_is_ok_and_schema_valid():
     assert observation["status"] == "ok"
     assert observation["transport"] == "ws"
     assert observation["error"] is None
-    assert observation["latency_ms"] == observation["response_ts"] - observation["runner_ts"]
-    assert observation["btc_binance"]["source"] == "rtds_binance"
+    # K-20: ws bacaginda latency_ms anlamli degil (cache kopyalama), her
+    # zaman null; tazelik staleness_ms'te.
+    assert observation["latency_ms"] is None
+    assert observation["staleness_ms"] == observation["response_ts"] - 1717000060000
+    assert observation["btc_reference"]["source"] == "rtds_binance"
+    assert observation["btc_reference"]["venue"] == "polymarket_rtds"
     assert observation["btc_oracle"]["source"] == "rtds_chainlink"
+    assert observation["btc_oracle"]["venue"] == "chainlink"
     assert raw_entries == []
 
     ok, errors = validate(_wrap_round(observation), "round")
@@ -110,7 +115,7 @@ async def test_build_ws_observation_partial_when_oracle_missing():
     )
 
     assert observation["status"] == "partial"
-    assert observation["btc_oracle"] == {"value": None, "source": "none", "feed_ts": None}
+    assert observation["btc_oracle"] == {"value": None, "source": "none", "venue": "none", "feed_ts": None}
     assert "btc_oracle" in observation["error"]
 
 
@@ -131,6 +136,8 @@ async def test_build_ws_observation_missed_when_everything_empty_uses_runner_ts_
 
     assert observation["status"] == "missed"
     assert observation["venue_ts"] == observation["runner_ts"]
+    assert observation["latency_ms"] is None
+    assert observation["staleness_ms"] is None
     assert observation["book"]["up"]["bids_top5"] == []
 
     ok, errors = validate(_wrap_round(observation), "round")
@@ -170,8 +177,17 @@ async def test_build_rest_observation_ok_with_exchange():
 
     assert observation["status"] == "ok"
     assert observation["transport"] == "rest"
-    assert observation["btc_binance"] == {"value": 67001.5, "source": "rest_poll", "feed_ts": None}
-    assert observation["btc_oracle"] == {"value": None, "source": "none", "feed_ts": None}
+    # K-20: rest bacaginda latency_ms gercek RTT, dolu; staleness_ms
+    # feed_ts REST'te donmedigi icin null.
+    assert observation["latency_ms"] == observation["response_ts"] - observation["runner_ts"]
+    assert observation["staleness_ms"] is None
+    assert observation["btc_reference"] == {
+        "value": 67001.5,
+        "source": "rest_poll",
+        "venue": "binance",
+        "feed_ts": None,
+    }
+    assert observation["btc_oracle"] == {"value": None, "source": "none", "venue": "none", "feed_ts": None}
     assert len(raw_entries) == 3
 
     ok, errors = validate(_wrap_round(observation), "round")
@@ -230,7 +246,39 @@ async def test_build_rest_observation_no_exchange_available():
         )
 
     assert observation["status"] == "ok"  # yalnizca book attempt edildi, ikisi de basarili
-    assert observation["btc_binance"] == {"value": None, "source": "none", "feed_ts": None}
+    assert observation["btc_reference"] == {"value": None, "source": "none", "venue": "none", "feed_ts": None}
+
+
+@pytest.mark.asyncio
+async def test_build_rest_observation_exchange_fallback_changes_venue():
+    """K-19: probe binance yerine coinbase'e dusmusse, venue bunu tasir."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "token_id" in url:
+            return httpx.Response(
+                200,
+                json={"timestamp": "1717000061000", "bids": [{"price": "0.48", "size": "10"}], "asks": [{"price": "0.52", "size": "8"}]},
+            )
+        if "coinbase" in url:
+            return httpx.Response(200, json={"price": "67005.0", "bid": "67004", "ask": "67006"})
+        raise AssertionError(f"unexpected url {url}")
+
+    transport = httpx.MockTransport(handler)
+    now = _clock([1, 1, 2])
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        observation, _ = await build_rest_observation(
+            offset_sec=30,
+            close_ts_ms=CLOSE_TS_MS,
+            token_ids=TOKEN_IDS,
+            http_client=client,
+            exchange="coinbase",
+            now_ms_fn=now,
+        )
+
+    assert observation["btc_reference"]["venue"] == "coinbase"
+    assert observation["btc_reference"]["source"] == "rest_poll"
 
 
 @pytest.mark.asyncio
@@ -250,6 +298,7 @@ async def test_build_rest_observation_all_fail_is_missed():
 
     assert observation["status"] == "error"
     assert observation["venue_ts"] == observation["runner_ts"]
+    assert observation["staleness_ms"] is None
 
     ok, errors = validate(_wrap_round(observation), "round")
     assert ok, errors

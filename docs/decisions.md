@@ -139,8 +139,11 @@ Karar Binance fiyatına bakılarak veriliyor, market Chainlink oracle ile
 çözülüyor. Chainlink spot fiyatın 100-500 ms gerisinde olabiliyor ve turun
 son saniyelerinde ikisi ayrışabilir.
 
-**Sonuç:** `btc_binance` ve `btc_oracle` her gözlemde **ayrı ayrı**
+**Sonuç:** `btc_reference` ve `btc_oracle` her gözlemde **ayrı ayrı**
 kaydedilir. Biri diğerinden türetilmez, biri diğerinin yerine kullanılmaz.
+(Alan adı sonradan `btc_binance` → `btc_reference` olarak değişti çünkü
+REST bacağında referans fiyat Binance dışı borsalardan da gelebiliyor,
+bkz. K-19.)
 
 ---
 
@@ -269,22 +272,56 @@ satır reddedilir.
 
 ## K-19 — REST bacağının referans borsası WS bacağıyla aynı olmayabilir
 
-WS bacağında `btc_binance`, Polymarket RTDS'in kendi Binance relay'idir
-(`source: rtds_binance`) — her zaman Binance. REST bacağında ise Binance'in
-genel API'si ABD merkezli IP'leri (GitHub Actions runner'ları dahil) 451 ile
-reddedebiliyor. Bu durumda toplayıcı Coinbase'e, o da olmazsa Kraken'e
-düşer.
+WS bacağında `btc_reference`, Polymarket RTDS'in kendi Binance relay'idir
+(`source: rtds_binance`, `venue: polymarket_rtds`) — her zaman bu ikili.
+REST bacağında ise Binance'in genel API'si ABD merkezli IP'leri (GitHub
+Actions runner'ları dahil) 451 ile reddedebiliyor. Bu durumda toplayıcı
+Coinbase'e, o da olmazsa Kraken'e düşer.
 
 Sonuç: K-18'in "taşıma karşılaştırması tek değişkenlidir (transport)"
-varsayımı, borsa düşmesi tetiklendiğinde `btc_binance` için bozulabilir —
+varsayımı, borsa düşmesi tetiklendiğinde `btc_reference` için bozulabilir —
 o run'da hem `transport` hem referans borsa değişmiş olur. Bu gizli
-değildir: hangi borsanın kullanıldığı her REST gözleminin `raw[]`
-girdisinde durur (`endpoint: binance_ticker|coinbase_ticker|kraken_ticker`)
-ve `job_start` heartbeat'inde özetlenir. Metrik katmanı, borsa düşmesi
-görülen run'ları `btc_binance` transport karşılaştırmasından ayrı
-değerlendirmelidir.
+değildir: `venue` alanı hangi borsanın kullanıldığını doğrudan taşır
+(`binance`/`coinbase`/`kraken` REST bacağında, `polymarket_rtds` WS
+bacağında) — ayrıca her REST gözleminin `raw[]` girdisinde
+(`endpoint: binance_ticker|coinbase_ticker|kraken_ticker`) ve `job_start`
+heartbeat'inde özetlenir. `source` *nasıl* alındığını (`rest_poll`,
+`rtds_binance`, ...) anlatır, `venue` *kimden* alındığını — aynı
+`source: rest_poll` üç farklı `venue`'ye karşılık gelebildiği için ikisi
+ayrı tutulur (bkz. SCHEMA.md 4.1.2). Metrik katmanı, borsa düşmesi
+görülen run'ları `btc_reference` transport karşılaştırmasından `venue`
+alanına bakarak ayırt edip ayrı değerlendirmelidir.
 
 **Sonuç:** düşme sırası Binance → Coinbase → Kraken. Toplayıcı her job
 başlangıcında (round başına değil) bir kez problar ve o run boyunca aynı
-borsayı kullanır. Üçü de erişilemezse `btc_binance` REST gözlemi
-`{value: null, source: "none", feed_ts: null}` ile yazılır, atlanmaz.
+borsayı kullanır. Üçü de erişilemezse `btc_reference` REST gözlemi
+`{value: null, source: "none", venue: "none", feed_ts: null}` ile
+yazılır, atlanmaz.
+
+---
+
+## K-20 — latency_ms ve staleness_ms iki farklı gecikme kavramı ölçer
+
+`ws` ve `rest` bacakları aynı alanı (`latency_ms`) iki farklı şey için
+kullanıyordu: `rest`'te gerçek ağ turu, `ws`'te bellek içi cache
+kopyalama süresi (tipik olarak sub-ms, pratikte hep `0`). İkincisi
+uydurma bir sayı değil ama bilgi taşımıyor — `rest` satırlarının
+yanında duran gerçek, değişken RTT değerleriyle karşılaştırıldığında
+doldurulmamış/bozuk veri gibi okunuyor.
+
+Alternatif olarak `latency_ms`'i "feed bayatlığı" (`runner_ts - feed_ts`)
+anlamına çekmek de değerlendirildi, reddedildi — bu zaten K-10'da ayrı
+tutulan üç zaman damgasının (`venue_ts`, `btc_reference.feed_ts`,
+`btc_oracle.feed_ts`) hangisine karşılık geldiği belirsizleşir ve metrik
+katmanı `transport`'a bakarak alanın anlamını yeniden yorumlamak zorunda
+kalırdı.
+
+**Sonuç:** iki ayrı alan. `latency_ms` (`int | null`) yalnızca ağ turunu
+ölçer; `rest` bacağında dolu, `ws` bacağında anlamlı olmadığı için
+`null`. `staleness_ms` (`int | null`) veri tazeliğini ölçer:
+`response_ts - btc_reference.feed_ts`; `btc_reference.feed_ts` null ise
+(REST'in çoğu ucu zaman damgası döndürmüyor, bkz. K-10) `staleness_ms`
+da `null`. `btc_reference` seçildi çünkü karar bu fiyata bakılarak
+veriliyor (K-09) — operasyonel olarak en ilgili olan bu. İkisi de her
+zaman `observations[]` içinde zorunlu alan; eksik değil, `null` yazılır
+(K-06 — sessiz atlama yok).

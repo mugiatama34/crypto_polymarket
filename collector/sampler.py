@@ -1,8 +1,8 @@
 """Offset basina iki gozlem uretir: `transport: "ws"` ve `transport: "rest"`.
 
-SCHEMA.md 4.1 + docs/decisions.md K-10/K-19 ile tutarli. Ikisi de asla
-exception firlatmaz -- eksik veri `status: "partial"/"missed"/"error"` ile
-yazilir, atlanmaz (bkz. CLAUDE.md degismez kural 4).
+SCHEMA.md 4.1 + docs/decisions.md K-10/K-19/K-20 ile tutarli. Ikisi de
+asla exception firlatmaz -- eksik veri `status: "partial"/"missed"/"error"`
+ile yazilir, atlanmaz (bkz. CLAUDE.md degismez kural 4).
 """
 
 import asyncio
@@ -23,11 +23,24 @@ def _default_now_ms() -> int:
 
 
 def _empty_oracle_feed() -> dict:
-    return {"value": None, "source": "none", "feed_ts": None}
+    return {"value": None, "source": "none", "venue": "none", "feed_ts": None}
 
 
 def _offset_actual_sec(close_ts_ms: int, fired_at_ms: int) -> float:
     return (close_ts_ms - fired_at_ms) / 1000.0
+
+
+def _staleness_ms(response_ts: int, reference_feed: dict) -> Optional[int]:
+    """K-20: response_ts - btc_reference.feed_ts. feed_ts yoksa null.
+
+    btc_reference secildi cunku karar bu fiyata bakilarak veriliyor
+    (K-09) -- operasyonel olarak en ilgili olan bu. btc_oracle.feed_ts
+    ayri, kendi amaci icin duruyor (K-10), burada karistirilmiyor.
+    """
+    feed_ts = reference_feed.get("feed_ts")
+    if feed_ts is None:
+        return None
+    return response_ts - feed_ts
 
 
 async def build_ws_observation(
@@ -41,12 +54,11 @@ async def build_ws_observation(
 ) -> tuple:
     """Bellekteki WS cache'inden anlik kopya.
 
-    latency_ms burada AG TURU DEGIL -- cache okuma/kopyalama suresidir.
-    runner_ts, cache okumaya baslamadan hemen once; response_ts, kopya
-    (book/btc_binance/btc_oracle) bellekte tamamlandiktan hemen sonra
-    alinir. Feed'in ne kadar eski oldugu latency_ms'te degil; venue_ts /
-    btc_binance.feed_ts / btc_oracle.feed_ts ile runner_ts arasindaki
-    farkla olculur (bkz. SCHEMA.md 4.1 notu, docs/decisions.md K-10).
+    `latency_ms` burada AG TURU DEGIL -- cache okuma/kopyalama suresidir
+    (tipik olarak sub-ms, pratikte hep 0'a yuvarlanir), bu yuzden K-20
+    geregi `null` yazilir; `rest` bacaginin latency_ms'iyle karistirilmaz.
+    Veri tazeligi `staleness_ms` ile ayri olculur (response_ts -
+    btc_reference.feed_ts).
     """
     now_ms = now_ms_fn or _default_now_ms
     fired_at_ms = now_ms()
@@ -64,7 +76,7 @@ async def build_ws_observation(
     if down_ws is None:
         missing.append("book.down")
     if binance_ws is None:
-        missing.append("btc_binance")
+        missing.append("btc_reference")
     if chainlink_ws is None:
         missing.append("btc_oracle")
 
@@ -93,13 +105,23 @@ async def build_ws_observation(
     if venue_ts is None:
         venue_ts = runner_ts
 
-    btc_binance = (
-        {"value": binance_ws["value"], "source": "rtds_binance", "feed_ts": binance_ws["feed_ts_ms"]}
+    btc_reference = (
+        {
+            "value": binance_ws["value"],
+            "source": "rtds_binance",
+            "venue": "polymarket_rtds",
+            "feed_ts": binance_ws["feed_ts_ms"],
+        }
         if binance_ws
         else _empty_oracle_feed()
     )
     btc_oracle = (
-        {"value": chainlink_ws["value"], "source": "rtds_chainlink", "feed_ts": chainlink_ws["feed_ts_ms"]}
+        {
+            "value": chainlink_ws["value"],
+            "source": "rtds_chainlink",
+            "venue": "chainlink",
+            "feed_ts": chainlink_ws["feed_ts_ms"],
+        }
         if chainlink_ws
         else _empty_oracle_feed()
     )
@@ -110,10 +132,11 @@ async def build_ws_observation(
         "venue_ts": venue_ts,
         "response_ts": response_ts,
         "runner_ts": runner_ts,
-        "latency_ms": response_ts - runner_ts,
+        "latency_ms": None,
+        "staleness_ms": _staleness_ms(response_ts, btc_reference),
         "transport": "ws",
         "book": book,
-        "btc_binance": btc_binance,
+        "btc_reference": btc_reference,
         "btc_oracle": btc_oracle,
         "status": status,
         "error": ("eksik: " + ", ".join(missing)) if missing else None,
@@ -130,7 +153,10 @@ async def build_rest_observation(
     exchange: Optional[str],
     now_ms_fn: Optional[Callable[[], int]] = None,
 ) -> tuple:
-    """Gercek REST cagrilariyla gozlem. latency_ms burada gercek ag turu.
+    """Gercek REST cagrilariyla gozlem. `latency_ms` burada gercek ag
+    turu (K-20). `staleness_ms`, btc_reference.feed_ts REST'te genellikle
+    donmedigi icin (K-10) fiilen hep null cikar -- bu kod bunu varsaymaz,
+    feed_ts bir gun dolarsa otomatik calisir.
 
     `btc_oracle` bu bacakta her zaman null/"none" yazilir -- Chainlink
     icin genel-amacli, kimlik dogrulamasiz bir REST/on-chain esdegeri bu
@@ -183,13 +209,13 @@ async def build_rest_observation(
         venue_ts = runner_ts
 
     if exch_result is None:
-        btc_binance = _empty_oracle_feed()
+        btc_reference = _empty_oracle_feed()
     elif isinstance(exch_result, Exception):
-        btc_binance = _empty_oracle_feed()
-        errors.append(f"btc_binance: {exch_result}")
+        btc_reference = _empty_oracle_feed()
+        errors.append(f"btc_reference: {exch_result}")
     elif exch_result.value is None:
-        btc_binance = _empty_oracle_feed()
-        errors.append(f"btc_binance: hicbir borsadan alinamadi ({exchange})")
+        btc_reference = _empty_oracle_feed()
+        errors.append(f"btc_reference: hicbir borsadan alinamadi ({exchange})")
         raw_entries.append(
             {
                 "endpoint": f"{exchange}_ticker_failed",
@@ -197,7 +223,12 @@ async def build_rest_observation(
             }
         )
     else:
-        btc_binance = {"value": exch_result.value, "source": "rest_poll", "feed_ts": None}
+        btc_reference = {
+            "value": exch_result.value,
+            "source": "rest_poll",
+            "venue": exch_result.exchange,
+            "feed_ts": None,
+        }
         raw_entries.append({"endpoint": f"{exch_result.exchange}_ticker", "payload": exch_result.raw})
         successes += 1
 
@@ -216,9 +247,10 @@ async def build_rest_observation(
         "response_ts": response_ts,
         "runner_ts": runner_ts,
         "latency_ms": response_ts - runner_ts,
+        "staleness_ms": _staleness_ms(response_ts, btc_reference),
         "transport": "rest",
         "book": {"up": book_up, "down": book_down},
-        "btc_binance": btc_binance,
+        "btc_reference": btc_reference,
         "btc_oracle": _empty_oracle_feed(),
         "status": status,
         "error": "; ".join(errors) if errors else None,
