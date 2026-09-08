@@ -29,7 +29,7 @@ class HeartbeatWriter:
         self._base_dir = base_dir
         self.last_tick_ms: Optional[int] = None
 
-    def _write(self, event: str, *, rounds_seen=None, rounds_missed=None, detail=None) -> Path:
+    def _write(self, event: str, *, rounds_seen=None, rounds_missed=None, detail=None, extra_fields=None) -> Path:
         record = {
             "schema_version": 1,
             "runner_id": self.runner_id,
@@ -40,6 +40,8 @@ class HeartbeatWriter:
             "rounds_missed": rounds_missed,
             "detail": detail,
         }
+        if extra_fields:
+            record.update(extra_fields)
         kwargs = {}
         if self._base_dir is not None:
             kwargs["base_dir"] = self._base_dir
@@ -57,8 +59,28 @@ class HeartbeatWriter:
     def error(self, detail: str) -> Path:
         return self._write("error", detail=detail)
 
-    def job_end(self, *, rounds_seen: int, rounds_missed: int, detail: Optional[str] = None) -> Path:
-        return self._write("job_end", rounds_seen=rounds_seen, rounds_missed=rounds_missed, detail=detail)
+    def job_end(
+        self,
+        *,
+        rounds_seen: int,
+        rounds_missed: int,
+        discovery_slug_hits: int,
+        discovery_listing_hits: int,
+        detail: Optional[str] = None,
+    ) -> Path:
+        """`discovery_slug_hits`/`discovery_listing_hits`: SCHEMA.md bolum 6,
+        docs/decisions.md K-21 -- yalnizca `job_end`de bulunan opsiyonel
+        alanlar, tek satirda toplu izlenebilirlik icin."""
+        return self._write(
+            "job_end",
+            rounds_seen=rounds_seen,
+            rounds_missed=rounds_missed,
+            detail=detail,
+            extra_fields={
+                "discovery_slug_hits": discovery_slug_hits,
+                "discovery_listing_hits": discovery_listing_hits,
+            },
+        )
 
     def seconds_since_last_tick(self) -> float:
         if self.last_tick_ms is None:

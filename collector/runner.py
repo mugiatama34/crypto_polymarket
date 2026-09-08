@@ -66,6 +66,8 @@ class LongjobRunner:
         self._chosen_exchange: Optional[str] = None
         self.rounds_seen = 0
         self.rounds_missed = 0
+        self.discovery_slug_hits = 0
+        self.discovery_listing_hits = 0
 
     async def _sleep_with_heartbeat(self, target_ms: int) -> None:
         """`target_ms`'e kadar bekler ama en fazla TICK_INTERVAL_SEC'lik
@@ -162,6 +164,11 @@ class LongjobRunner:
             self.heartbeat.error(f"market bulunamadi, round atlandi: {round_slug(round_start_s)}")
             return
 
+        if market.discovery_method == "listing":
+            self.discovery_listing_hits += 1
+        else:
+            self.discovery_slug_hits += 1
+
         await self.clob_ws_client.subscribe([market.token_ids["up"], market.token_ids["down"]])
         round_record = await self._run_round(market)
         writer.write_round(round_record, base_dir=self.raw_base_dir, rejected_base_dir=self.rejected_base_dir)
@@ -209,5 +216,7 @@ class LongjobRunner:
         self.heartbeat.job_end(
             rounds_seen=self.rounds_seen,
             rounds_missed=self.rounds_missed,
+            discovery_slug_hits=self.discovery_slug_hits,
+            discovery_listing_hits=self.discovery_listing_hits,
             detail="6 saat siniri yaklasti, temiz kapanis",
         )

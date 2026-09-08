@@ -147,6 +147,8 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
 
     assert runner.rounds_seen == 2
     assert runner.rounds_missed == 0
+    assert runner.discovery_slug_hits == 2
+    assert runner.discovery_listing_hits == 0
     assert rtds.ran is True
     assert clob_ws.ran is True
     assert len(clob_ws.subscribe_calls) == 2
@@ -164,9 +166,12 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
     heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
     heartbeat_files = list(heartbeat_dir.rglob("heartbeat.jsonl"))
     assert heartbeat_files
-    events = [json.loads(line)["event"] for line in heartbeat_files[0].read_text(encoding="utf-8").splitlines()]
-    assert events[0] == "job_start"
-    assert events[-1] == "job_end"
+    heartbeat_lines = [json.loads(line) for line in heartbeat_files[0].read_text(encoding="utf-8").splitlines()]
+    assert heartbeat_lines[0]["event"] == "job_start"
+    assert heartbeat_lines[-1]["event"] == "job_end"
+    assert heartbeat_lines[-1]["discovery_slug_hits"] == 2
+    assert heartbeat_lines[-1]["discovery_listing_hits"] == 0
+    assert "discovery_slug_hits" not in heartbeat_lines[0]  # job_start'ta yok (K-21)
 
     log = _git(["log", "--oneline"], cwd=repo_dir).stdout
     assert "longjob" in log  # en az bir veri commit'i atildi
@@ -250,3 +255,112 @@ async def test_run_counts_missed_round_when_market_not_found(tmp_path):
     assert runner.rounds_missed == 1
     assert clob_ws.subscribe_calls == []
     assert not (repo_dir / "data" / "raw").exists()
+
+
+@pytest.mark.asyncio
+async def test_run_tracks_discovery_hits_when_second_round_falls_back_to_listing(tmp_path):
+    """K-21: round1 slug ile bulunur, round2'nin slug'i bulunamaz ve
+    listelemeye duser -- job_end heartbeat'i 1/1 sayar."""
+    repo_dir = _init_repo(tmp_path)
+    round2_epoch = ALIGNED_EPOCH_S + 300
+
+    def _book_response():
+        return httpx.Response(
+            200,
+            json={
+                "timestamp": "1717000060000",
+                "bids": [{"price": "0.48", "size": "10"}],
+                "asks": [{"price": "0.52", "size": "8"}],
+            },
+        )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        params = request.url.params
+        if "slug" in params:
+            slug = params["slug"]
+            if slug == f"btc-updown-5m-{ALIGNED_EPOCH_S}":
+                return httpx.Response(
+                    200,
+                    json=[
+                        {
+                            "id": "evt-1",
+                            "slug": slug,
+                            "conditionId": "0xabc",
+                            "outcomes": json.dumps(["Up", "Down"]),
+                            "clobTokenIds": json.dumps(["111", "222"]),
+                        }
+                    ],
+                )
+            return httpx.Response(200, json=[])  # round2 slug bulunamadi -> listelemeye duser
+        if "active" in params:  # listeleme cagrisi
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": "evt-2",
+                        "slug": f"btc-updown-5m-{round2_epoch}",
+                        "conditionId": "0xdef",
+                        "outcomes": json.dumps(["Up", "Down"]),
+                        "clobTokenIds": json.dumps(["333", "444"]),
+                    }
+                ],
+            )
+        if "/book" in url:
+            return _book_response()
+        if "binance" in url:
+            return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "67000"})
+        if "coinbase" in url or "kraken" in url:
+            return httpx.Response(451, text="unreachable in test")
+        raise AssertionError(f"unexpected url {url}")
+
+    transport = httpx.MockTransport(handler)
+    rtds = FakeSimpleWSClient(
+        {
+            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000},
+            "crypto_prices_chainlink": {"value": 66999.0, "feed_ts_ms": 1717000060000},
+        }
+    )
+    clob_ws = FakeClobWSClient(
+        {
+            "111": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+            "222": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+            "333": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+            "444": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+        }
+    )
+    clock = FakeClock(start_ms=(ALIGNED_EPOCH_S - 10) * 1000)
+
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        runner = LongjobRunner(
+            http_client=http_client,
+            rtds_client=rtds,
+            clob_ws_client=clob_ws,
+            clock=clock,
+            state_path=repo_dir / "state" / "longjob.json",
+            raw_base_dir=repo_dir / "data" / "raw",
+            coverage_base_dir=repo_dir / "data" / "coverage",
+            rejected_base_dir=repo_dir / "data" / "rejected",
+            repo_dir=repo_dir,
+            job_duration_sec=650,
+            shutdown_margin_sec=60,
+            commit_interval_sec=200,
+        )
+        await runner.run()
+
+    assert runner.rounds_seen == 2
+    assert runner.discovery_slug_hits == 1
+    assert runner.discovery_listing_hits == 1
+
+    heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
+    heartbeat_files = list(heartbeat_dir.rglob("heartbeat.jsonl"))
+    job_end = json.loads(heartbeat_files[0].read_text(encoding="utf-8").splitlines()[-1])
+    assert job_end["event"] == "job_end"
+    assert job_end["discovery_slug_hits"] == 1
+    assert job_end["discovery_listing_hits"] == 1
+
+    date_str = datetime.fromtimestamp(ALIGNED_EPOCH_S, tz=timezone.utc).strftime("%Y-%m-%d")
+    rounds_path = repo_dir / "data" / "raw" / "runner=longjob" / f"date={date_str}" / "rounds.jsonl"
+    lines = [json.loads(line) for line in rounds_path.read_text(encoding="utf-8").splitlines()]
+    assert lines[0]["raw"][0]["endpoint"] == "gamma_event_slug"
+    assert lines[1]["raw"][0]["endpoint"] == "gamma_event_listing"

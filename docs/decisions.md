@@ -325,3 +325,31 @@ da `null`. `btc_reference` seçildi çünkü karar bu fiyata bakılarak
 veriliyor (K-09) — operasyonel olarak en ilgili olan bu. İkisi de her
 zaman `observations[]` içinde zorunlu alan; eksik değil, `null` yazılır
 (K-06 — sessiz atlama yok).
+
+---
+
+## K-21 — Keşif yolu tur bazında raw[]'da, toplu görünürlük heartbeat'te
+
+Market keşfi iki yoldan biriyle olur (slug hızlı yol, listeleme yedek
+yol — bkz. K-15 sonrası eklenen `gamma_client.discover_round_market`).
+Hangi yolun kullanıldığı zaten her round kaydının `raw[]` girdisinde
+duruyor (`endpoint: gamma_event_slug` | `gamma_event_listing`) — bu
+kaybolmuyor, değişmiyor.
+
+Ama slug deseni bozulursa (Polymarket format değiştirirse, ör.) bunu
+fark etmenin tek yolu düzinelerce round kaydını açıp `raw[]` içindeki
+`endpoint` alanını tek tek okumak olurdu. Round bazlı bir alan bunun
+için yanlış yer: `discovery_method` her round'da zaten var, ayrıca bir
+round alanına taşımak tekrar (aynı bilginin iki yerde durması) ve
+şemayı büyütmek anlamına gelirdi.
+
+**Sonuç:** `job_end` heartbeat'ine iki sayaç eklendi:
+`discovery_slug_hits`, `discovery_listing_hits` (bkz. SCHEMA.md bölüm
+6). Round alanı eklenmedi çünkü tur bazında sorgulanacak bir şey değil
+— eğilim olarak izlenecek bir şey. Bu iki alan şemada **opsiyoneldir**:
+yalnızca `job_end`de bulunur, `job_start`/`tick`/`error` event'lerinde
+alan hiç yok (K-06'daki "null yazılır" deseninden farklı — burada alanın
+kendisi bu event'lerde anlamsız olduğu için hiç yer almıyor, `null` bile
+değil). Slug deseni bozulursa `discovery_listing_hits` job_end'de
+yükselir, tek satırda görünür; hangi round'ların etkilendiği gerekirse
+`raw[]`'a bakılır.

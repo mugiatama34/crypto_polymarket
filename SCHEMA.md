@@ -202,9 +202,16 @@ PnL burada hesaplanmaz. Türetme katmanının işi.
 | `rounds_seen` | int \| null | `job_end` için |
 | `rounds_missed` | int \| null | `job_end` için |
 | `detail` | string \| null | |
+| `discovery_slug_hits` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur, diğer event'lerde alan hiç yok |
+| `discovery_listing_hits` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur, diğer event'lerde alan hiç yok |
 
 `tick` en az 60 saniyede bir yazılır. İki tick arasındaki boşluk = kapsama
 kaybı.
+
+`discovery_slug_hits`/`discovery_listing_hits`: round'ların market kesfi
+sırasıyla hangi yoldan (`gamma_event_slug` | `gamma_event_listing`, bkz.
+bölüm 4 `raw[]`) bulunduğunun job başına toplam sayısı — bkz.
+docs/decisions.md K-21.
 
 ---
 
