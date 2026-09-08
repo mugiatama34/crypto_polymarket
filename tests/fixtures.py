@@ -18,6 +18,7 @@ VALID_ROUND = {
             "response_ts": 1717000060050,
             "runner_ts": 1717000060010,
             "latency_ms": 40,
+            "transport": "ws",
             "book": {
                 "up": {
                     "best_bid": 0.51,
