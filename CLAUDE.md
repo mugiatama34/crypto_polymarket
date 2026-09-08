@@ -1,3 +1,6 @@
+Kararların gerekçesi için `docs/decisions.md` dosyasını oku ve bağlayıcı
+kabul et. Bir kuralı değiştirmeden önce oradaki gerekçesine bak.
+
 # Proje Kuralları
 
 Bu bir **ölçüm projesidir.** Amacı, Polymarket 5 dakikalık BTC up/down
