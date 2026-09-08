@@ -6,6 +6,7 @@ kilidi, bkz. CLAUDE.md). Yalnizca longjob.
 """
 
 import asyncio
+import logging
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,8 @@ from .clock import RealClock
 from .heartbeat import TICK_INTERVAL_SEC, HeartbeatWriter
 from .round_calendar import OFFSETS_SEC, ROUND_SECONDS, next_round_start_epoch_s, offset_target_ts_ms, round_slug
 from .state import load_state, save_state
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_JOB_DURATION_SEC = 6 * 60 * 60
 DEFAULT_SHUTDOWN_MARGIN_SEC = 2 * 60
@@ -81,6 +84,29 @@ class LongjobRunner:
     def _maybe_tick(self) -> None:
         if self.heartbeat.due_for_tick():
             self.heartbeat.tick()
+        self._drain_rtds_alerts()
+
+    def _drain_rtds_alerts(self) -> None:
+        """RTDS sessizlik uyarilari/zorla-yeniden-baglanmalari
+        (bkz. RTDSClient._watchdog_loop, docs/decisions.md K-23)
+        kendi basina heartbeat'e erisemiyor -- runner her tick'te
+        kuyruktan cekip yazar (K-06: bosluk da veridir, sessiz gecilmez)."""
+        drain = getattr(self.rtds_client, "drain_alerts", None)
+        if drain is None:
+            return
+        for alert in drain():
+            self.heartbeat.error(alert)
+
+    async def _on_ws_disconnect(self, name: str, duration_ms: int, error: Optional[str]) -> None:
+        """RTDS/CLOB WS baglantisi koptu ve yeniden kuruldu -- baglanti
+        hatasinda da, RTDS'in kendi sessizlik yeniden-baglanmasinda da
+        (error alaninda `rtds_silence:<topic>` gorunur) heartbeat'e
+        yazilir; boslukta sessiz gecilmez (K-06)."""
+        detail = f"{name} yeniden baglandi: {duration_ms}ms bosluk"
+        if error:
+            detail += f" (sebep: {error})"
+        logger.warning(detail)
+        self.heartbeat.error(detail)
 
     def _maybe_commit(self, last_commit_ms: int, *, force: bool = False) -> int:
         now_ms = self.clock.now_ms()
@@ -175,6 +201,15 @@ class LongjobRunner:
         self.rounds_seen += 1
 
     async def run(self) -> None:
+        set_rtds_on_disconnect = getattr(self.rtds_client, "set_on_disconnect", None)
+        if set_rtds_on_disconnect is not None:
+            set_rtds_on_disconnect(lambda duration_ms, error: self._on_ws_disconnect("RTDS", duration_ms, error))
+        set_clob_ws_on_disconnect = getattr(self.clob_ws_client, "set_on_disconnect", None)
+        if set_clob_ws_on_disconnect is not None:
+            set_clob_ws_on_disconnect(
+                lambda duration_ms, error: self._on_ws_disconnect("CLOB WS", duration_ms, error)
+            )
+
         probe_result = await exchange_probe.probe_exchanges(self.http_client)
         self._chosen_exchange = probe_result.exchange
         blocked = [a.exchange for a in probe_result.attempts if not a.ok]

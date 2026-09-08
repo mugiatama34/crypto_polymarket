@@ -24,14 +24,12 @@ logger = logging.getLogger("longjob")
 async def _amain() -> None:
     clock = RealClock()
 
-    async def on_rtds_disconnect(duration_ms, error):
-        logger.warning("RTDS koptu, %sms sonra yeniden baglanildi (error=%s)", duration_ms, error)
-
-    async def on_clob_disconnect(duration_ms, error):
-        logger.warning("CLOB WS koptu, %sms sonra yeniden baglanildi (error=%s)", duration_ms, error)
-
-    rtds_client = RTDSClient(now_ms_fn=clock.now_ms, on_disconnect=on_rtds_disconnect)
-    clob_ws_client = ClobMarketWSClient(now_ms_fn=clock.now_ms, on_disconnect=on_clob_disconnect)
+    # on_disconnect burada degil, LongjobRunner.run() icinde baglanir --
+    # runner heartbeat'i sahipleniyor, boslugu/hatayi heartbeat'e yazmasi
+    # gerekiyor (bkz. docs/decisions.md K-06, K-23). Konsol logu da o
+    # handler icinde.
+    rtds_client = RTDSClient(now_ms_fn=clock.now_ms)
+    clob_ws_client = ClobMarketWSClient(now_ms_fn=clock.now_ms)
 
     async with httpx.AsyncClient(timeout=10.0) as http_client:
         runner = LongjobRunner(

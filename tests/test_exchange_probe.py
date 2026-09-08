@@ -5,57 +5,60 @@ from collector.exchange_probe import fetch_price, probe_exchanges
 
 
 @pytest.mark.asyncio
-async def test_probe_exchanges_uses_binance_when_available():
+async def test_probe_exchanges_uses_coinbase_when_available():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert "binance" in str(request.url)
-        return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "67000.50"})
-
-    transport = httpx.MockTransport(handler)
-    async with httpx.AsyncClient(transport=transport) as client:
-        result = await probe_exchanges(client)
-
-    assert result.exchange == "binance"
-    assert result.value == 67000.50
-    assert result.attempts[0].ok is True
-
-
-@pytest.mark.asyncio
-async def test_probe_exchanges_falls_back_to_coinbase_on_binance_451():
-    def handler(request: httpx.Request) -> httpx.Response:
-        if "binance" in str(request.url):
-            return httpx.Response(451, text="restricted location")
-        if "coinbase" in str(request.url):
-            return httpx.Response(200, json={"price": "67010.25", "bid": "67009", "ask": "67011"})
-        raise AssertionError("kraken should not be reached")
+        assert "coinbase" in str(request.url)
+        return httpx.Response(200, json={"price": "67000.50", "bid": "67000", "ask": "67001"})
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as client:
         result = await probe_exchanges(client)
 
     assert result.exchange == "coinbase"
-    assert result.value == 67010.25
-    assert result.attempts[0].exchange == "binance"
-    assert result.attempts[0].ok is False
-    assert result.attempts[0].status_code == 451
-    assert result.attempts[1].exchange == "coinbase"
-    assert result.attempts[1].ok is True
+    assert result.value == 67000.50
+    assert result.attempts[0].ok is True
 
 
 @pytest.mark.asyncio
-async def test_probe_exchanges_falls_back_to_kraken_when_binance_and_coinbase_fail():
+async def test_probe_exchanges_falls_back_to_kraken_on_coinbase_failure():
     def handler(request: httpx.Request) -> httpx.Response:
+        if "coinbase" in str(request.url):
+            return httpx.Response(451, text="restricted location")
         if "kraken" in str(request.url):
             return httpx.Response(
                 200,
-                json={"error": [], "result": {"XXBTZUSD": {"c": ["67020.1", "0.5"]}}},
+                json={"error": [], "result": {"XXBTZUSD": {"c": ["67010.25", "0.5"]}}},
             )
-        return httpx.Response(451, text="restricted location")
+        raise AssertionError("binance should not be reached")
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as client:
         result = await probe_exchanges(client)
 
     assert result.exchange == "kraken"
+    assert result.value == 67010.25
+    assert result.attempts[0].exchange == "coinbase"
+    assert result.attempts[0].ok is False
+    assert result.attempts[0].status_code == 451
+    assert result.attempts[1].exchange == "kraken"
+    assert result.attempts[1].ok is True
+
+
+@pytest.mark.asyncio
+async def test_probe_exchanges_falls_back_to_binance_when_coinbase_and_kraken_fail():
+    """K-19: Binance her seferinde 451 dondugu icin sirada son -- yalnizca
+    Coinbase ve Kraken ikisi de basarisiz olursa denenir."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "binance" in str(request.url):
+            return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "67020.1"})
+        return httpx.Response(451, text="restricted location")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await probe_exchanges(client)
+
+    assert result.exchange == "binance"
     assert result.value == 67020.1
 
 
@@ -74,15 +77,18 @@ async def test_probe_exchanges_all_blocked_returns_none():
 @pytest.mark.asyncio
 async def test_probe_exchanges_connection_error_falls_through():
     def handler(request: httpx.Request) -> httpx.Response:
-        if "binance" in str(request.url):
+        if "coinbase" in str(request.url):
             raise httpx.ConnectError("connection refused")
-        return httpx.Response(200, json={"price": "1.0", "bid": "1", "ask": "1"})
+        return httpx.Response(
+            200,
+            json={"error": [], "result": {"XXBTZUSD": {"c": ["1.0", "0.5"]}}},
+        )
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as client:
         result = await probe_exchanges(client)
 
-    assert result.exchange == "coinbase"
+    assert result.exchange == "kraken"
     assert result.attempts[0].error == "connection refused"
 
 

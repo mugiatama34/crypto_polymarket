@@ -24,6 +24,13 @@ kullanilir; yoksa slug'in kendisinin kodladigi baslangic epoch'una (ve
 +300s'e) dusulur -- slug'i Polymarket'in kendisi uretiyor, bu yuzden
 "market'in bildirdigi" tanimina aykiri sayilmiyor. Ham event yaniti
 `raw` alaninda degismeden saklanir.
+
+UYARI (bkz. docs/decisions.md K-22): event ust seviyesindeki `startDate`
+turun baslangici DEGIL -- serinin ilk olusturulma tarihi, bu yuzden
+open_ts icin ADAY ALAN LISTESINDE YOK. Gercek baslangic `startTime` /
+`eventStartTime`; ikisi de yoksa slug epoch'una dusulur. `endDate` ayni
+sorunu tasimiyor -- prob kosumunda turun gercek bitisiyle eslesti, bu
+yuzden `_END_DATE_FIELDS`'e dokunulmadi.
 """
 
 import json
@@ -36,7 +43,7 @@ import httpx
 from .endpoints import GAMMA_BASE_URL, GAMMA_EVENTS_PATH
 from .round_calendar import ROUND_SECONDS, round_slug
 
-_START_DATE_FIELDS = ("startDate", "startTime", "gameStartTime")
+_START_DATE_FIELDS = ("startTime", "eventStartTime", "gameStartTime")
 _END_DATE_FIELDS = ("endDate", "endTime", "gameEndTime")
 _SLUG_PREFIX = "btc-updown-5m-"
 _LISTING_PAGE_SIZE = 100
@@ -184,6 +191,19 @@ async def fetch_round_market_via_listing(
     """Yedek yol: aktif/kapanmamis event'leri sayfalayarak listeler,
     `btc-updown-5m-` on ekiyle baslayan slug'lar arasindan close_ts'i
     bizim hedefimize (start_epoch_s + 300s) esit olani secer.
+
+    DOGRULANMADI -- bkz. CLAUDE.md "Calisma sekli". Prob, `order=startDate
+    &ascending=true`'nin en eski event'i basa koydugunu ve guncel 5dk
+    market'in ilk `_LISTING_MAX_PAGES * _LISTING_PAGE_SIZE` sonuca hic
+    girmedigini gosterdi -- bu yol pratikte calismiyor. Bunun yerine
+    hangi parametrenin (`order=endDate`, `end_date_min`/`end_date_max`,
+    vb.) gercekten isledigi henuz gercek uca karsi dogrulanmadi (tahminle
+    degistirilmedi, bkz. scripts/probe.py'deki aday problar). Dogrulanana
+    kadar bu fonksiyon bilinen-bozuk parametrelerle CALISMAYA DEVAM EDER
+    -- yalnizca slug yolu basarisiz oldugunda devreye girdigi icin
+    (`discover_round_market`), gunluk operasyonu bloklamiyor ama round
+    kaybina yol acabilir; bu satir kaldirilmadan once probe_output'taki
+    gercek sonuc incelenmeli.
 
     Sadece resmi olarak dogrulanmis Gamma parametreleri kullanilir
     (active, closed, order, ascending, limit, offset) -- dogrulanmamis

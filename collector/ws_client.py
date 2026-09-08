@@ -47,6 +47,7 @@ class PersistentWSClient:
         self._sleep = sleep_fn or asyncio.sleep
         self._stop = False
         self._ws = None
+        self._forced_reason: Optional[str] = None
 
     async def run(self) -> None:
         delay = self._reconnect_delay_sec
@@ -59,8 +60,9 @@ class PersistentWSClient:
                     if disconnected_at is not None:
                         duration_ms = self._now_ms() - disconnected_at
                         if self._on_disconnect:
-                            await self._on_disconnect(duration_ms, None)
+                            await self._on_disconnect(duration_ms, self._forced_reason)
                         disconnected_at = None
+                        self._forced_reason = None
                     delay = self._reconnect_delay_sec
 
                     if self._on_open:
@@ -96,6 +98,24 @@ class PersistentWSClient:
     async def send(self, message: str) -> None:
         if self._ws is not None:
             await self._ws.send(message)
+
+    async def force_reconnect(self, reason: Optional[str] = None) -> None:
+        """Mevcut baglantiyi disaridan kapatir; `run()` dongusu normal
+        yeniden baglanma yoluna duser (delay/backoff sifirlanir, on_open
+        tekrar cagrilir). Sessizlik gibi hata FIRLATMAYAN durumlar icin --
+        gercek baglanti hatalarinda zaten ayni yol otomatik isliyor.
+
+        `reason`, bir sonraki basarili baglantida `on_disconnect`'e
+        `error` olarak iletilir; organik kopmalarda bu deger hep `None`
+        kalir (bkz. testler) -- yalnizca bilinçli force_reconnect
+        cagrisi bir sebep tasir."""
+        self._forced_reason = reason
+        if self._ws is not None:
+            with contextlib.suppress(Exception):
+                await self._ws.close()
+
+    def set_on_disconnect(self, callback: Optional[Callable[[int, Optional[str]], Awaitable[None]]]) -> None:
+        self._on_disconnect = callback
 
     def stop(self) -> None:
         self._stop = True

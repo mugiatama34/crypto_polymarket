@@ -21,13 +21,21 @@ CLOB_WS_PING_MESSAGE = "PING"
 
 # RTDS WebSocket. Kaynak: @polymarket/real-time-data-client (resmi npm paketi,
 # src/client.ts DEFAULT_HOST, src/model.ts, README.md).
+#
+# Sembol formati topic'e gore FARKLI -- prob dogruladi (bkz.
+# docs/decisions.md K-19 sonrasi RTDS notlari): crypto_prices_chainlink
+# "btc/usd" (kucuk harf, egik cizgi) bekliyor, crypto_prices "btcusdt"
+# bekliyor. Ikisine ayni sembolu (ornegin "BTCUSDT") gondermek sunucunun
+# sessizce hic mesaj yollamamasina yol aciyordu (Polymarket/rs-clob-client
+# issue #136 ile ayni belirti).
 RTDS_WS_URL = "wss://ws-live-data.polymarket.com"
 RTDS_PING_INTERVAL_SEC = 5.0
-RTDS_PING_MESSAGE = "ping"
+RTDS_PING_MESSAGE = "PING"
 RTDS_TOPIC_BINANCE = "crypto_prices"
 RTDS_TOPIC_CHAINLINK = "crypto_prices_chainlink"
 RTDS_SUBSCRIPTION_TYPE = "update"
-RTDS_BTC_SYMBOL = "BTCUSDT"
+RTDS_SYMBOL_BINANCE = "btcusdt"
+RTDS_SYMBOL_CHAINLINK = "btc/usd"
 
 # Borsa REST uçları — exchange_probe.py'de sırayla denenir (bkz.
 # docs/decisions.md K-19). Binance ABD kaynaklı IP'leri 451 ile

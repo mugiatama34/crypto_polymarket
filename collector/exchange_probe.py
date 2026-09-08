@@ -1,11 +1,16 @@
-"""Binance -> Coinbase -> Kraken referans fiyat problamasi (REST bacagi).
+"""Coinbase -> Kraken -> Binance referans fiyat problamasi (REST bacagi).
 
 Gerekce (docs/decisions.md K-19): Binance'in genel API'si ABD kaynakli
-IP'leri (GitHub Actions runner'lari dahil) 451 ile reddedebiliyor. Bu
-sandbox'ta bu domainlere hic erisim olmadigi icin (egress proxy) durum
-bu oturumda dogrulanamadi -- bu yuzden varsaymak yerine runner her job
-basinda BIR KEZ gercekten problar, hangi borsanin kullanildigi heartbeat
-ve `raw[]` uzerinden gorunur kalir.
+IP'leri (GitHub Actions runner'lari dahil) HER SEFERINDE 451 ile
+reddediyor. Binance'i sirada ilk tutmak, her job baslangicinda garantili
+basarisiz bir ag turu demekti; bu yuzden sira Coinbase -> Kraken ->
+Binance'e cevrildi (Coinbase ISO zaman damgasi tasiyor, Kraken tasimiyor
+-- Kraken'e dusuldugunde feed_ts null olur ve staleness_ms
+hesaplanamaz, ama en azindan deger elde edilir). Bu sandbox'ta bu
+domainlere hic erisim olmadigi icin (egress proxy) sira degisikliginin
+etkisi bu oturumda canli dogrulanamadi -- bu yuzden varsaymak yerine
+runner her job basinda BIR KEZ gercekten problar, hangi borsanin
+kullanildigi heartbeat ve `raw[]` uzerinden gorunur kalir.
 
 Ucler: bkz. collector/endpoints.py (kaynak notlariyla).
 """
@@ -35,9 +40,9 @@ def _parse_kraken(raw: dict) -> float:
 
 
 _EXCHANGES: tuple = (
-    ("binance", BINANCE_TICKER_URL, _parse_binance),
     ("coinbase", COINBASE_TICKER_URL, _parse_coinbase),
     ("kraken", KRAKEN_TICKER_URL, _parse_kraken),
+    ("binance", BINANCE_TICKER_URL, _parse_binance),
 )
 _EXCHANGE_BY_NAME = {name: (url, parser) for name, url, parser in _EXCHANGES}
 

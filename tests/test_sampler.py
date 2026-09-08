@@ -95,6 +95,57 @@ async def test_build_ws_observation_all_present_is_ok_and_schema_valid():
 
 
 @pytest.mark.asyncio
+async def test_build_ws_observation_includes_rtds_raw_envelope_in_raw_entries():
+    """RTDS'in ham zarfi (varsa) raw[]'a girer -- onceden hep [] donuyordu,
+    yani publish_ts_ms gibi extra alanlar kalici olarak kayboluyordu
+    (bkz. docs/decisions.md K-22 sonrasi tartisma, collector/sampler.py)."""
+    clob_ws = FakeCache(
+        {
+            "111": {"book_side": _full_book_side(), "venue_ts_ms": 1717000060000},
+            "222": {"book_side": _full_book_side(), "venue_ts_ms": 1717000060000},
+        }
+    )
+    binance_envelope = {"topic": "crypto_prices", "type": "update", "timestamp": 1717000060005, "payload": {}}
+    chainlink_envelope = {
+        "topic": "crypto_prices_chainlink",
+        "type": "update",
+        "timestamp": 1717000059805,
+        "payload": {},
+    }
+    rtds = FakeCache(
+        {
+            "crypto_prices": {
+                "value": 67000.0,
+                "feed_ts_ms": 1717000060000,
+                "publish_ts_ms": 1717000060005,
+                "raw_envelope": binance_envelope,
+            },
+            "crypto_prices_chainlink": {
+                "value": 66998.0,
+                "feed_ts_ms": 1717000059800,
+                "publish_ts_ms": 1717000059805,
+                "raw_envelope": chainlink_envelope,
+            },
+        }
+    )
+    now = _clock([1717000060010, 1717000060010, 1717000060015])
+
+    _, raw_entries = await build_ws_observation(
+        offset_sec=240,
+        close_ts_ms=CLOSE_TS_MS,
+        token_ids=TOKEN_IDS,
+        rtds_client=rtds,
+        clob_ws_client=clob_ws,
+        now_ms_fn=now,
+    )
+
+    assert raw_entries == [
+        {"endpoint": "rtds_binance", "payload": binance_envelope},
+        {"endpoint": "rtds_chainlink", "payload": chainlink_envelope},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_build_ws_observation_partial_when_oracle_missing():
     clob_ws = FakeCache(
         {
