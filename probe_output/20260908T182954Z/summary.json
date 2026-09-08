@@ -1,0 +1,56 @@
+{
+  "run_dir": "probe_output/20260908T182954Z",
+  "target_slug": "btc-updown-5m-1788892200",
+  "generated_at_utc": "2026-09-08T18:30:03.442840+00:00",
+  "probes": [
+    {
+      "name": "gamma_slug",
+      "skipped": false,
+      "ok": true,
+      "status_code": 200,
+      "error": null
+    },
+    {
+      "name": "gamma_listing",
+      "skipped": false,
+      "ok": true,
+      "status_code": 200,
+      "error": null
+    },
+    {
+      "name": "clob_book",
+      "skipped": false,
+      "ok": true,
+      "status_code": 200,
+      "error": null
+    },
+    {
+      "name": "exchange_binance",
+      "skipped": false,
+      "ok": false,
+      "status_code": 451,
+      "error": null
+    },
+    {
+      "name": "exchange_coinbase",
+      "skipped": false,
+      "ok": true,
+      "status_code": 200,
+      "error": null
+    },
+    {
+      "name": "exchange_kraken",
+      "skipped": false,
+      "ok": true,
+      "status_code": 200,
+      "error": null
+    },
+    {
+      "name": "rtds_first_messages",
+      "skipped": false,
+      "ok": true,
+      "status_code": null,
+      "error": null
+    }
+  ]
+}
