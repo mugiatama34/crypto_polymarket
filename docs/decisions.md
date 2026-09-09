@@ -773,3 +773,49 @@ eklenmesi gerekiyor — bu **bu PR'a dahil edilmedi**, ayrı bir iş. Burada
 yalnızca bulgu ve kök neden kaydediliyor (CLAUDE.md "bir seferde tek
 bileşen" — bu bir toplayıcı davranış değişikliği, şu anki iş yalnızca
 workflow + rapor script'i).
+
+---
+
+## K-31 — GitHub Actions `${{ }}` ifade dili aritmetik operatör desteklemiyor
+
+`longjob_shakedown.yml` her push'ta (branch push ve main'e merge push,
+`pull_request` değil) 0 saniyede `failure` ile sonuçlanıyordu, hiç job
+planlanmadan (`list_workflow_jobs` → `total_count: 0`). Log da yoktu —
+hiçbir job hiç başlamadığı için üretilecek log zaten olmuyor. Karşılaştırma
+için `probe.yml`'e bakıldı: aynı push'larda hiçbir run bile oluşmamış
+(yalnızca `workflow_dispatch` event'i var), yani "her push'ta çalışıyor"
+görüntüsü `on:` bloğundan gelmiyordu — GitHub, ayrıştıramadığı bir workflow
+dosyasını push event'inde bir "failure" run olarak kaydediyor, dosyanın
+kendi `on:` kısıtını okuyamadan.
+
+Kök neden satır 29'daydı:
+
+```yaml
+timeout-minutes: ${{ fromJson(inputs.duration_minutes) + 15 }}
+```
+
+GitHub Actions'ın `${{ }}` ifade dilinde aritmetik operatör (`+`, `-`,
+`*`, `/`) yok — bu belgelenmiş bir sınırlama. `${{ ... + 15 }}` yazımı
+parse zamanında `Unexpected symbol: '+'` hatası verir ve bu **tek satır**
+workflow dosyasının tamamını geçersiz kılar: `workflow_dispatch` ile elle
+tetiklemek de dahil hiçbir şekilde çalışmaz, çünkü dosya hiç
+ayrıştırılamıyor.
+
+Aynı dosyada satır 47 (`seconds=$(( ${{ inputs.duration_minutes }} * 60 ))`)
+doğru deseni zaten kullanıyordu: `${{ }}` yalnızca değeri enjekte ediyor,
+aritmetiği bash'in `$(( ))`'i yapıyor. Satır 29 için bu deseni
+uygulayamıyoruz çünkü `timeout-minutes` job başlamadan, herhangi bir step
+çalışmadan önce değerlendiriliyor.
+
+**Sonuç:** `timeout-minutes` için ayrı bir job/`needs`/`outputs` zinciri
+kurulmadı — yalnızca `+15` hesabı için üç yeni hata yüzeyi eklemiş
+olurdu. Bunun yerine sabit `timeout-minutes: 360` kullanılıyor: bu
+workflow zaten elle tetikleniyor, gerçek süre sınırı runner içinde
+`LONGJOB_DURATION_SEC` ile yönetiliyor (`collector/main.py`), Actions
+timeout'u yalnızca bir emniyet ağı — hassas olması gerekmiyor. 360 dakika
+hem 90 dakikalık varsayılan koşuma hem ileride denenebilecek daha uzun
+koşumlara yeter ve GitHub-hosted runner'ın kendi 6 saatlik job sınırıyla
+zaten uyumlu (daha yüksek bir değer verilse de aşılamazdı).
+
+**Genel kural:** `${{ }}` içinde aritmetik gerekiyorsa bash step'i
+içinde `$(( ))` ile yapılır, asla `${{ }}`'in kendi ifade dilinde değil.

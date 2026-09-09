@@ -23,10 +23,13 @@ permissions:
 jobs:
   shakedown:
     runs-on: ubuntu-latest
-    # duration_minutes'ten belirgin buyuk -- LongjobRunner kendi
-    # job_duration_sec sinirina ulasip temiz kapanmadan Actions
-    # tarafindan kesilirse job_end heartbeat'i hic yazilmaz.
-    timeout-minutes: ${{ fromJson(inputs.duration_minutes) + 15 }}
+    # Sabit emniyet agi -- gercek sure siniri runner icinde
+    # LONGJOB_DURATION_SEC ile yonetiliyor (asagida). Actions'in
+    # kendi 6 saatlik (360 dk) job sinirina esit ustten sinir: hem
+    # 90 dakikalik varsayilan kosuma hem ileride denenebilecek daha
+    # uzun kosumlara yeter, hassas hesaba gerek yok (bkz. K-31 --
+    # ${{ }} ifade dili aritmetik operator desteklemiyor).
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
