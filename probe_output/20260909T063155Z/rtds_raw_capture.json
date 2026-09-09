@@ -1,0 +1,161 @@
+{
+  "name": "rtds_raw_capture",
+  "url": "wss://ws-live-data.polymarket.com",
+  "connected": true,
+  "handshake": {
+    "status_code": 101,
+    "status_code_source": "inferred_from_successful_connect",
+    "response_headers": [
+      [
+        "Date",
+        "Wed, 09 Sep 2026 06:31:56 GMT"
+      ],
+      [
+        "Connection",
+        "upgrade"
+      ],
+      [
+        "upgrade",
+        "websocket"
+      ],
+      [
+        "sec-websocket-accept",
+        "xpvKMCc81ww5S4i2HuX3EPiwzBI="
+      ],
+      [
+        "sec-websocket-extensions",
+        "permessage-deflate"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=7776000; includeSubDomains"
+      ],
+      [
+        "Speculation-Rules",
+        "\"/cdn-cgi/speculation\""
+      ],
+      [
+        "set-cookie",
+        "__cf_bm=4ZeRFxlXTDlI98Ye1HPA2Tzp5umBz3YDxDG1kozliKE-1788935516.036384-1.0.1.1-YmQqjmws2iV3nMUQxlMDtis27d0KJQMe.ejr11tXrVO9HEHvWFdrUDuRADJWy1x5SBKH3SnGwLUk_P70IRboFcOICrJ8f86jg6B6flGv3l9Zh..eTSoe2Fm6OS0fbqe.; HttpOnly; SameSite=None; Secure; Path=/; Domain=polymarket.com; Expires=Wed, 09 Sep 2026 07:01:56 GMT"
+      ],
+      [
+        "Server-Timing",
+        "cfCacheStatus;desc=\"DYNAMIC\""
+      ],
+      [
+        "Server-Timing",
+        "cfEdge;dur=5,cfOrigin;dur=278"
+      ],
+      [
+        "Server",
+        "cloudflare"
+      ],
+      [
+        "CF-RAY",
+        "a384271f3f7f8663-IAD"
+      ]
+    ],
+    "subprotocol": null
+  },
+  "phase1_seconds": 15.0,
+  "phase1_description": "abonelik yok",
+  "phase2_seconds": 30.0,
+  "phase2_description": "crypto_prices filtresiz abonelik",
+  "phase3_seconds": 30.0,
+  "phase3_description": "aday crypto-disi topic'ler filtresiz abonelik: ('activity', 'comments')",
+  "phase3_topics_verified": false,
+  "event_count": 13,
+  "frame_received_count": 0,
+  "ping_sent_count": 10,
+  "events": [
+    {
+      "kind": "phase_start",
+      "wall_clock_utc": "2026-09-09T06:31:56.323007+00:00",
+      "elapsed_sec": 0.411,
+      "phase": 1,
+      "description": "abonelik yok"
+    },
+    {
+      "kind": "subscription_sent",
+      "wall_clock_utc": "2026-09-09T06:32:11.335165+00:00",
+      "elapsed_sec": 15.423,
+      "phase": 2,
+      "message": "{\"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\"}]}"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:16.335978+00:00",
+      "elapsed_sec": 20.424,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:21.338342+00:00",
+      "elapsed_sec": 25.426,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:26.339349+00:00",
+      "elapsed_sec": 30.427,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:31.344699+00:00",
+      "elapsed_sec": 35.433,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:36.347587+00:00",
+      "elapsed_sec": 40.436,
+      "message": "PING"
+    },
+    {
+      "kind": "subscription_sent",
+      "wall_clock_utc": "2026-09-09T06:32:41.340745+00:00",
+      "elapsed_sec": 45.429,
+      "phase": 3,
+      "message": "{\"subscriptions\": [{\"topic\": \"activity\", \"type\": \"*\"}, {\"topic\": \"comments\", \"type\": \"*\"}]}"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:46.346188+00:00",
+      "elapsed_sec": 50.434,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:51.349956+00:00",
+      "elapsed_sec": 55.438,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:32:56.355391+00:00",
+      "elapsed_sec": 60.443,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:33:01.359301+00:00",
+      "elapsed_sec": 65.447,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T06:33:06.364694+00:00",
+      "elapsed_sec": 70.453,
+      "message": "PING"
+    }
+  ],
+  "close_code": 1000,
+  "close_reason": "",
+  "error": null,
+  "captured_at_utc": "2026-09-09T06:33:11.435591+00:00"
+}
