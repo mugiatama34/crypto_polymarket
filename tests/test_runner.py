@@ -116,10 +116,15 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
 
     rtds = FakeSimpleWSClient(
         {
-            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000},
-            "crypto_prices_chainlink": {"value": 66999.0, "feed_ts_ms": 1717000060000},
+            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000, "feed_ts_source": "point"},
+            "crypto_prices_chainlink": {"value": 66999.0, "feed_ts_ms": 1717000060000, "feed_ts_source": "point"},
         }
     )
+    # K-25/K-29: gercek RTDSClient bu sayaclari tasir, test double elle
+    # isaretliyor -- job_end'e dogru gectigini dogrulamak icin.
+    rtds.dropped_not_json = 3
+    rtds.dropped_unknown_symbol = 1
+    rtds.dropped_unknown_shape = 2
     clob_ws = FakeClobWSClient(
         {
             "111": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
@@ -172,6 +177,11 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
     assert heartbeat_lines[-1]["discovery_slug_hits"] == 2
     assert heartbeat_lines[-1]["discovery_listing_hits"] == 0
     assert "discovery_slug_hits" not in heartbeat_lines[0]  # job_start'ta yok (K-21)
+    # K-25/K-29: rtds_client'in dusen cerceve sayaclari job_end'e geciyor.
+    assert heartbeat_lines[-1]["rtds_dropped_not_json"] == 3
+    assert heartbeat_lines[-1]["rtds_dropped_unknown_symbol"] == 1
+    assert heartbeat_lines[-1]["rtds_dropped_unknown_shape"] == 2
+    assert "rtds_dropped_not_json" not in heartbeat_lines[0]  # job_start'ta yok
 
     log = _git(["log", "--oneline"], cwd=repo_dir).stdout
     assert "longjob" in log  # en az bir veri commit'i atildi
@@ -317,8 +327,8 @@ async def test_run_tracks_discovery_hits_when_second_round_falls_back_to_listing
     transport = httpx.MockTransport(handler)
     rtds = FakeSimpleWSClient(
         {
-            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000},
-            "crypto_prices_chainlink": {"value": 66999.0, "feed_ts_ms": 1717000060000},
+            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000, "feed_ts_source": "point"},
+            "crypto_prices_chainlink": {"value": 66999.0, "feed_ts_ms": 1717000060000, "feed_ts_source": "point"},
         }
     )
     clob_ws = FakeClobWSClient(
@@ -358,6 +368,11 @@ async def test_run_tracks_discovery_hits_when_second_round_falls_back_to_listing
     assert job_end["event"] == "job_end"
     assert job_end["discovery_slug_hits"] == 1
     assert job_end["discovery_listing_hits"] == 1
+    # K-25/K-29: bu test double'in dropped_* sayaclari yok -- runner.py
+    # getattr(..., 0) ile guvenli varsayilana duser, KeyError/AttributeError yok.
+    assert job_end["rtds_dropped_not_json"] == 0
+    assert job_end["rtds_dropped_unknown_symbol"] == 0
+    assert job_end["rtds_dropped_unknown_shape"] == 0
 
     date_str = datetime.fromtimestamp(ALIGNED_EPOCH_S, tz=timezone.utc).strftime("%Y-%m-%d")
     rounds_path = repo_dir / "data" / "raw" / "runner=longjob" / f"date={date_str}" / "rounds.jsonl"

@@ -39,37 +39,59 @@ async def _instant_sleep(_seconds):
     await asyncio.sleep(0)
 
 
-def _envelope(topic, value, feed_ts, publish_ts=None):
-    """`publish_ts` (zarf disi -- yayincinin gonderim zamani) `feed_ts`ten
-    (payload icinde -- Chainlink'in kendi gozlem zamani) BILEREK farkli
-    verilebilir; ikisi karistirilmamali (bkz. collector/rtds_ws.py)."""
+async def _run_until(client, ws, predicate, timeout=5):
+    async def stop_soon():
+        while not predicate():
+            await asyncio.sleep(0)
+        ws.closed_by_test = True
+        client.stop()
+
+    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=timeout)
+
+
+def _dump_envelope(topic, symbol, points, publish_ts=999999):
+    """Iki prob kosumunda (K-27, K-28) GOZLENEN TEK sekil: initial data
+    dump. `topic` kasitli olarak sembolden BAGIMSIZ verilebilir -- K-28a
+    regresyon testi icin (zarftaki topic alani ayirt edici degil)."""
+    return json.dumps(
+        {
+            "topic": topic,
+            "type": "subscribe",
+            "timestamp": publish_ts,
+            "payload": {"symbol": symbol, "data": points},
+        }
+    )
+
+
+def _update_envelope(topic, symbol, value, payload_timestamp, publish_ts=None):
+    """Hic gozlenmemis, varsayimsal tekil-guncelleme sekli -- uretim
+    API'si destekliyor olabilir ama iki prob kosumunda da gorulmedi
+    (bkz. docs/decisions.md K-27/K-28b). `payload_timestamp` KASITLI
+    OLARAK YOK SAYILIR (K-08 guncellemesi -- payload.timestamp varsayimi
+    curudu): feed_ts_ms bu sekilde her zaman None kalir."""
     if publish_ts is None:
-        publish_ts = feed_ts + 5  # varsayilan: kasitli farkli, karistirma hatasini yakalar
+        publish_ts = payload_timestamp + 5
     return json.dumps(
         {
             "topic": topic,
             "type": "update",
             "timestamp": publish_ts,
-            "connection_id": "conn-1",
-            "payload": {"symbol": "BTCUSDT", "timestamp": feed_ts, "value": value},
+            "payload": {"symbol": symbol, "timestamp": payload_timestamp, "value": value},
         }
     )
 
 
 @pytest.mark.asyncio
-async def test_subscribes_to_both_topics_on_open():
+async def test_subscribes_to_both_topics_with_action_field_on_open():
+    """K-27: action alani olmadan sunucu abonelik mesajini sessizce yok
+    sayiyordu -- bkz. docs/decisions.md K-27."""
     ws = FakeWebSocket([])
     client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
 
-    async def stop_soon():
-        while not ws.sent:
-            await asyncio.sleep(0)
-        ws.closed_by_test = True
-        client.stop()
-
-    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=5)
+    await _run_until(client, ws, lambda: bool(ws.sent))
 
     sent = json.loads(ws.sent[0])
+    assert sent["action"] == "subscribe"
     topics = {s["topic"] for s in sent["subscriptions"]}
     assert topics == {"crypto_prices", "crypto_prices_chainlink"}
     # Sembol formati topic'e gore FARKLI -- bkz. docs/decisions.md,
@@ -81,74 +103,126 @@ async def test_subscribes_to_both_topics_on_open():
 
 
 @pytest.mark.asyncio
-async def test_caches_price_updates_per_topic():
-    messages = [
-        _envelope("crypto_prices", 67000.5, 1717000060000),
-        _envelope("crypto_prices_chainlink", 66998.1, 1717000059800),
+async def test_processes_initial_dump_selecting_max_timestamp_point():
+    """TEK gozlenen sekil (K-27/K-28b). Nokta dizisi KASITLI OLARAK
+    siralanmamis -- korlemesine [-1] alinirsa yanlis nokta secilir
+    (bkz. docs/decisions.md K-28c: chainlink dokumu duzensiz araliklarla
+    geliyor, siralama garanti degil)."""
+    points = [
+        {"timestamp": 1000, "value": 100.0},
+        {"timestamp": 3000, "value": 300.0},  # en buyuk timestamp, ama son eleman degil
+        {"timestamp": 2000, "value": 200.0},
     ]
-    ws = FakeWebSocket(messages)
-    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
-
-    async def stop_soon():
-        while client.snapshot("crypto_prices_chainlink") is None:
-            await asyncio.sleep(0)
-        ws.closed_by_test = True
-        client.stop()
-
-    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=5)
-
-    binance = client.snapshot("crypto_prices")
-    chainlink = client.snapshot("crypto_prices_chainlink")
-    assert binance["value"] == 67000.5
-    assert binance["feed_ts_ms"] == 1717000060000
-    # publish_ts_ms (zarf disi -- yayincinin gonderim zamani) feed_ts_ms'ten
-    # (payload icinde -- Chainlink gozlem zamani) AYRI tutulur, ikisi
-    # karistirilmaz (bkz. modul docstring'i).
-    assert binance["publish_ts_ms"] == 1717000060005
-    assert chainlink["value"] == 66998.1
-    assert chainlink["feed_ts_ms"] == 1717000059800
-    assert chainlink["publish_ts_ms"] == 1717000059805
-    # Ham zarf da saklanir -- raw[] icin (bkz. collector/sampler.py).
-    assert binance["raw_envelope"]["topic"] == "crypto_prices"
-    assert binance["raw_envelope"]["payload"]["value"] == 67000.5
-
-
-@pytest.mark.asyncio
-async def test_ignores_initial_data_dump_without_value():
-    dump = json.dumps(
-        {
-            "topic": "crypto_prices",
-            "type": "update",
-            "payload": {"symbol": "BTCUSDT", "data": [{"timestamp": 1, "value": 1.0}]},
-        }
-    )
+    dump = _dump_envelope("crypto_prices", "btcusdt", points, publish_ts=5000)
     ws = FakeWebSocket([dump])
     client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
 
-    async def stop_soon():
-        for _ in range(50):
-            await asyncio.sleep(0)
-        ws.closed_by_test = True
-        client.stop()
+    await _run_until(client, ws, lambda: client.snapshot("crypto_prices") is not None)
 
-    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=5)
+    snap = client.snapshot("crypto_prices")
+    assert snap["value"] == 300.0
+    assert snap["feed_ts_ms"] == 3000
+    assert snap["feed_ts_source"] == "point"
+    assert snap["publish_ts_ms"] == 5000
+
+
+@pytest.mark.asyncio
+async def test_topic_routing_uses_payload_symbol_not_envelope_topic():
+    """K-28a regresyon: zarftaki `topic` alani "crypto_prices" olsa bile
+    payload.symbol "btc/usd" ise veri chainlink cache'ine yazilmali --
+    gercek prob verisinde gozlenen tam olarak bu (bkz.
+    probe_output/20260909T082742Z, docs/decisions.md K-28a)."""
+    mislabeled = _dump_envelope(
+        "crypto_prices",  # yanlis etiket, gercek RTDS davranisi
+        "btc/usd",
+        [{"timestamp": 1000, "value": 79593.3}],
+    )
+    ws = FakeWebSocket([mislabeled])
+    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    await _run_until(client, ws, lambda: client.snapshot("crypto_prices_chainlink") is not None)
+
+    assert client.snapshot("crypto_prices_chainlink")["value"] == 79593.3
     assert client.snapshot("crypto_prices") is None
 
 
 @pytest.mark.asyncio
-async def test_ignores_unknown_topic():
-    other = json.dumps({"topic": "comments", "payload": {"value": 1}})
+async def test_update_shape_never_trusts_payload_timestamp():
+    """K-08 guncellemesi: payload.timestamp'in feed'in kendi gozlem
+    zamani oldugu varsayimi iki prob kosumunda da (K-27, K-28) curudu --
+    tekil-guncelleme sekli gorulurse bile feed_ts_ms None kalir."""
+    update = _update_envelope("crypto_prices", "btcusdt", 67000.5, payload_timestamp=1717000060000)
+    ws = FakeWebSocket([update])
+    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    await _run_until(client, ws, lambda: client.snapshot("crypto_prices") is not None)
+
+    snap = client.snapshot("crypto_prices")
+    assert snap["value"] == 67000.5
+    assert snap["feed_ts_ms"] is None
+    assert snap["feed_ts_source"] == "none"
+    # publish_ts_ms zarf timestamp'inden dolar, feed_ts_ms'ten AYRI --
+    # ikisi asla karistirilmaz (bkz. modul docstring'i).
+    assert snap["publish_ts_ms"] == 1717000060005
+    assert snap["raw_envelope"]["topic"] == "crypto_prices"
+
+
+@pytest.mark.asyncio
+async def test_dropped_not_json_counter_increments_on_bad_json():
+    ws = FakeWebSocket(["not json {{{"])
+    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    await _run_until(client, ws, lambda: client.dropped_not_json >= 1)
+
+    assert client.dropped_not_json == 1
+    assert client.dropped_unknown_symbol == 0
+    assert client.dropped_unknown_shape == 0
+
+
+@pytest.mark.asyncio
+async def test_dropped_unknown_symbol_counter_increments_on_unrecognized_symbol():
+    other = json.dumps({"topic": "comments", "payload": {"symbol": "ethusdt", "value": 1}})
     ws = FakeWebSocket([other])
     client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
 
-    async def stop_soon():
-        for _ in range(50):
-            await asyncio.sleep(0)
-        ws.closed_by_test = True
-        client.stop()
+    await _run_until(client, ws, lambda: client.dropped_unknown_symbol >= 1)
 
-    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=5)
+    assert client.dropped_unknown_symbol == 1
     assert client.snapshot("crypto_prices") is None
+
+
+@pytest.mark.asyncio
+async def test_dropped_unknown_symbol_counter_increments_when_payload_missing():
+    other = json.dumps({"topic": "crypto_prices"})
+    ws = FakeWebSocket([other])
+    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    await _run_until(client, ws, lambda: client.dropped_unknown_symbol >= 1)
+
+    assert client.dropped_unknown_symbol == 1
+
+
+@pytest.mark.asyncio
+async def test_dropped_unknown_shape_counter_increments_when_no_usable_value_or_data():
+    envelope = json.dumps({"topic": "crypto_prices", "payload": {"symbol": "btcusdt"}})
+    ws = FakeWebSocket([envelope])
+    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    await _run_until(client, ws, lambda: client.dropped_unknown_shape >= 1)
+
+    assert client.dropped_unknown_shape == 1
+    assert client.snapshot("crypto_prices") is None
+
+
+@pytest.mark.asyncio
+async def test_dropped_unknown_shape_counter_increments_on_empty_data_array():
+    envelope = json.dumps({"topic": "crypto_prices", "payload": {"symbol": "btcusdt", "data": []}})
+    ws = FakeWebSocket([envelope])
+    client = RTDSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    await _run_until(client, ws, lambda: client.dropped_unknown_shape >= 1)
+
+    assert client.dropped_unknown_shape == 1
 
 
 @pytest.mark.asyncio

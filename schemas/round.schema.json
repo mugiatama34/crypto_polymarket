@@ -106,7 +106,7 @@
     "oracle_feed": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value", "source", "venue", "feed_ts"],
+      "required": ["value", "source", "venue", "feed_ts", "feed_ts_source"],
       "properties": {
         "value": { "type": ["number", "null"] },
         "source": {
@@ -115,7 +115,8 @@
         "venue": {
           "enum": ["binance", "coinbase", "kraken", "polymarket_rtds", "chainlink", "none"]
         },
-        "feed_ts": { "type": ["integer", "null"] }
+        "feed_ts": { "type": ["integer", "null"] },
+        "feed_ts_source": { "enum": ["point", "none"] }
       },
       "allOf": [
         {
@@ -136,6 +137,14 @@
               "venue": { "not": { "const": "none" } }
             }
           }
+        },
+        {
+          "if": { "properties": { "feed_ts": { "type": "null" } } },
+          "then": { "properties": { "feed_ts_source": { "const": "none" } } }
+        },
+        {
+          "if": { "properties": { "feed_ts": { "type": "integer" } } },
+          "then": { "properties": { "feed_ts_source": { "const": "point" } } }
         }
       ]
     },

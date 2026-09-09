@@ -66,11 +66,19 @@ class HeartbeatWriter:
         rounds_missed: int,
         discovery_slug_hits: int,
         discovery_listing_hits: int,
+        rtds_dropped_not_json: int,
+        rtds_dropped_unknown_symbol: int,
+        rtds_dropped_unknown_shape: int,
         detail: Optional[str] = None,
     ) -> Path:
         """`discovery_slug_hits`/`discovery_listing_hits`: SCHEMA.md bolum 6,
         docs/decisions.md K-21 -- yalnizca `job_end`de bulunan opsiyonel
-        alanlar, tek satirda toplu izlenebilirlik icin."""
+        alanlar, tek satirda toplu izlenebilirlik icin.
+
+        `rtds_dropped_*`: `RTDSClient`'in `_handle_message`'da sessizce
+        dusurdugu cerceve sayaclari (K-25 -- tam duzeltme, ham cerceve
+        kaydi, hala acik; bu sayaclar K-29 ile eklenen kismi gorunurluk).
+        Ayni desende, yalnizca `job_end`de bulunan opsiyonel alanlar."""
         return self._write(
             "job_end",
             rounds_seen=rounds_seen,
@@ -79,6 +87,9 @@ class HeartbeatWriter:
             extra_fields={
                 "discovery_slug_hits": discovery_slug_hits,
                 "discovery_listing_hits": discovery_listing_hits,
+                "rtds_dropped_not_json": rtds_dropped_not_json,
+                "rtds_dropped_unknown_symbol": rtds_dropped_unknown_symbol,
+                "rtds_dropped_unknown_shape": rtds_dropped_unknown_shape,
             },
         )
 

@@ -2,8 +2,9 @@
 
 Kaynak: @polymarket/real-time-data-client (resmi npm paketi) README.md ve
 src/model.ts -- bkz. collector/endpoints.py. Abonelik tek mesajla, iki
-topic birden; her mesaj zarfi `{topic, type, timestamp, payload,
-connection_id}`, payload (CryptoPrice) `{symbol, timestamp(ms), value}`.
+topic birden; zarf `{action, subscriptions}` sarmalayicisi GEREKLI --
+`action` alani olmadan sunucu abonelik mesajini sessizce yok sayiyor,
+hata donmuyor, baglanti acik kaliyor (bkz. docs/decisions.md K-27).
 
 `filters` alani bir JSON STRING'dir (nesne degil) -- nesne gonderilirse
 sunucu sessizce hic mesaj yollamiyor (Polymarket/rs-clob-client issue
@@ -11,15 +12,40 @@ sunucu sessizce hic mesaj yollamiyor (Polymarket/rs-clob-client issue
 kucuk harfli "btcusdt" bekliyor, `crypto_prices_chainlink` kucuk harfli
 ve egik cizgili "btc/usd" bekliyor -- bkz. collector/endpoints.py.
 
-Baglanti kurulunca sunucu "initial data dump" da gonderebiliyor (README:
-`{symbol, data: [...]}` sekli) -- bu mesajlarda `payload.value` yok, bu
-yuzden atlaniyor; yalnizca tekil guncellemeler ("value" alani olan)
-cache'e yazilir.
+Zarfin `topic` alani AYIRT EDICI DEGIL: chainlink verisi de zarfta
+`topic: "crypto_prices"` etiketiyle gelebiliyor (gozlendi, bkz.
+docs/decisions.md K-28a). Hangi feed'e ait oldugu yalnizca
+`payload.symbol`'den (`btcusdt`/`btc/usd`) belirlenebilir --
+`_TOPIC_BY_SYMBOL` bunun icin kullanilir. `envelope.get("topic")`'e
+guvenmek chainlink verisini sessizce binance cache'ine yazdirirdi.
 
-Zarfin disindaki ust seviye `timestamp` YAYINCININ GONDERIM ZAMANIDIR,
-Chainlink'in kendi gozlem zamani degil -- o `payload.timestamp` icinde
-(`feed_ts_ms`). Ikisi karistirilmaz; disaridaki `publish_ts_ms` olarak
-ayri saklanir (bkz. docs/decisions.md K-22 sonrasi tartisma).
+Baglanti kurulunca sunucu "initial data dump" gonderiyor (README:
+`{symbol, data: [...]}` sekli, `payload.value` yok) -- iki ayri prob
+kosumunda (K-27, K-28) GOZLENEN TEK sekil bu; gercek tekil-guncelleme
+cercevesi (`payload.value` dogrudan var) hic gorulmedi. Cache artik bu
+dokum sekliyle DE doldurulur: `payload.data[]` icinden `timestamp`'i EN
+BUYUK olan nokta secilir (korlemesine `[-1]` degil -- API siralamayi
+garanti etmiyor, K-28c: chainlink dokumu duzensiz araliklarla geliyor).
+Tekil-guncelleme seklinde bir cerceve bir gun gorulurse o da islenir.
+
+Zarfin disindaki ust seviye `timestamp` YAYINCININ GONDERIM ZAMANIDIR
+(`publish_ts_ms` olarak ayri saklanir), feed'in kendi gozlem zamani
+DEGIL. Onceki varsayim -- feed zamaninin `payload.timestamp` icinde
+oldugu -- iki ayri prob kosumunda da (K-27, K-28) hicbir cercevede
+`payload.timestamp` gozlenmedigi icin curudu (bkz. docs/decisions.md
+K-08 guncellemesi). Tek dogrulanmis feed-zamani kaynagi `payload.data[]`
+icindeki nokta-bazli `timestamp`'lerdir: kullanildiginda
+`feed_ts_source: "point"`; aksi halde (`data` yok, bos, veya kullanilabilir
+nokta yok) `feed_ts_ms: None` ve `feed_ts_source: "none"` -- zarf
+`timestamp`'ine ASLA dusulmez (publish ve feed zamanlari birbirinin
+yerine gecmez, yanlis bir sifir staleness_ms uretilmesin diye).
+
+Taninmayan cerceveler (JSON degil / sembol taninmiyor / ne kullanilabilir
+`value` ne `data` noktasi var) sessizce dusuruluyordu (K-25 -- K-06'ya
+aykiri). Tam duzeltme (ham cercevenin kaydi) hala acik; bu surumde en
+azindan uc ayri sayac (`dropped_not_json`, `dropped_unknown_symbol`,
+`dropped_unknown_shape`) tutulur ve `job_end` heartbeat'ine yazilir --
+gorunurluk saglanir, dusurme davranisinin kendisi degismez.
 
 Sessizlik korumasi iki ayri esikle calisir (bkz. docs/decisions.md K-23):
 `silence_warn_sec` asilinca yalnizca bir alert kuyruguna yazilir (baglanti
@@ -27,7 +53,9 @@ korunur, `drain_alerts()` ile cagiran taraf -- runner.py -- bunu
 heartbeat'e error olarak yazar). `silence_reconnect_sec` asilinca
 baglanti zorla kapatilip yeniden kurulur. Esikler topic basina farkli
 olabilir (chainlink/binance yayin kadansi farkli olabilir); varsayilanlar
-gecicidir, gercek mesajlar-arasi gecikme dagilimi olculmeden secildi.
+gecicidir -- K-28b, 60 saniyelik bir pencerede SIFIR guncelleme cercevesi
+gozlemledi (DOGRULANMADI, tek kosum); dogrulanirsa bu esikler production'da
+surekli yanlis alarm uretiyor olabilir, ayri bir olcumle ele alinacak.
 """
 
 import asyncio
@@ -54,6 +82,9 @@ _SYMBOL_BY_TOPIC = {
     RTDS_TOPIC_BINANCE: RTDS_SYMBOL_BINANCE,
     RTDS_TOPIC_CHAINLINK: RTDS_SYMBOL_CHAINLINK,
 }
+# K-28a: zarfin `topic` alani ayirt edici degil -- gercek eslestirme
+# payload.symbol uzerinden, `_SYMBOL_BY_TOPIC`'in tersiyle yapilir.
+_TOPIC_BY_SYMBOL = {symbol: topic for topic, symbol in _SYMBOL_BY_TOPIC.items()}
 
 # K-23: gecici varsayilanlar -- olculmus mesajlar-arasi gecikme
 # dagilimiyla degistirilecek (bkz. scripts/probe.py gap-dagilimi problari).
@@ -71,6 +102,46 @@ def _per_topic(value, default: float) -> dict:
     if isinstance(value, dict):
         return {topic: value.get(topic, default) for topic in TOPICS}
     return {topic: value for topic in TOPICS}
+
+
+def _select_latest_point(data: list) -> Optional[dict]:
+    """`payload.data[]` icinden `timestamp`'i EN BUYUK olan, hem
+    `timestamp` hem `value` tasiyan noktayi secer -- korlemesine `[-1]`
+    degil, API siralamayi garanti etmiyor (bkz. modul docstring'i,
+    K-28c). Uygun nokta yoksa `None`."""
+    candidates = [
+        point
+        for point in data
+        if isinstance(point, dict) and "timestamp" in point and "value" in point
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda point: point["timestamp"])
+
+
+def _extract_price(payload: dict) -> Optional[tuple]:
+    """`payload`'dan `(value, feed_ts_ms, feed_ts_source)` cikarir.
+
+    Iki sekil: `data[]` dokumu (TEK gozlenen sekil, bkz. K-27/K-28b) veya
+    dogrudan `value` (hic gozlenmedi, ama uretim API'si varsayimsal
+    olarak destekliyor). Ikisi de kullanilamazsa `None` doner (cagiran
+    `dropped_unknown_shape` sayar).
+
+    `feed_ts_ms` yalnizca `data[]`'dan secilen bir noktadan gelir --
+    zarf `timestamp`'i (publish zamani) hicbir zaman feed_ts olarak
+    kullanilmaz (bkz. modul docstring'i, K-08 guncellemesi)."""
+    data = payload.get("data")
+    if isinstance(data, list) and data:
+        point = _select_latest_point(data)
+        if point is None:
+            return None
+        return float(point["value"]), int(point["timestamp"]), "point"
+
+    if "value" in payload:
+        value = payload.get("value")
+        return (float(value) if value is not None else None), None, "none"
+
+    return None
 
 
 class RTDSClient:
@@ -93,6 +164,11 @@ class RTDSClient:
         self._warned: dict = {topic: False for topic in TOPICS}
         self._alerts: list = []
         self._watchdog_task = None
+        # K-25: sessizce dusen cerceveler icin gorunurluk (tam duzeltme --
+        # ham cerceve kaydi -- hala acik, bkz. modul docstring'i).
+        self.dropped_not_json = 0
+        self.dropped_unknown_symbol = 0
+        self.dropped_unknown_shape = 0
         self._ws_client = PersistentWSClient(
             RTDS_WS_URL,
             on_message=self._handle_message,
@@ -127,6 +203,7 @@ class RTDSClient:
             self._last_data_ms[topic] = now
             self._warned[topic] = False
         subscription = {
+            "action": "subscribe",
             "subscriptions": [
                 {
                     "topic": topic,
@@ -134,7 +211,7 @@ class RTDSClient:
                     "filters": json.dumps({"symbol": _SYMBOL_BY_TOPIC[topic]}),
                 }
                 for topic in TOPICS
-            ]
+            ],
         }
         await ws.send(json.dumps(subscription))
 
@@ -142,22 +219,27 @@ class RTDSClient:
         try:
             envelope = json.loads(raw_message)
         except (json.JSONDecodeError, TypeError):
-            return
-
-        topic = envelope.get("topic")
-        if topic not in self.cache:
+            self.dropped_not_json += 1
             return
 
         payload = envelope.get("payload")
-        if not isinstance(payload, dict) or "value" not in payload:
-            return  # initial data dump veya taninmayan sekil
+        symbol = payload.get("symbol") if isinstance(payload, dict) else None
+        topic = _TOPIC_BY_SYMBOL.get(symbol)
+        if topic is None:
+            self.dropped_unknown_symbol += 1
+            return
 
-        value = payload.get("value")
-        feed_ts = payload.get("timestamp")
+        extracted = _extract_price(payload)
+        if extracted is None:
+            self.dropped_unknown_shape += 1
+            return
+        value, feed_ts_ms, feed_ts_source = extracted
+
         publish_ts = envelope.get("timestamp")
         self.cache[topic] = {
-            "value": float(value) if value is not None else None,
-            "feed_ts_ms": int(feed_ts) if feed_ts is not None else None,
+            "value": value,
+            "feed_ts_ms": feed_ts_ms,
+            "feed_ts_source": feed_ts_source,
             "publish_ts_ms": int(publish_ts) if publish_ts is not None else None,
             "raw_envelope": envelope,
         }

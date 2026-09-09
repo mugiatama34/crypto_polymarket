@@ -131,6 +131,7 @@ reddedilir.
 | `source` | string | `rtds_chainlink` \| `rtds_binance` \| `rest_poll` \| `onchain` \| `none` — **taşıma yolu** (bu sayıyı nasıl aldık) |
 | `venue` | string | `binance` \| `coinbase` \| `kraken` \| `polymarket_rtds` \| `chainlink` \| `none` — **kaynak** (bu sayı hangi borsa/oracle'dan) |
 | `feed_ts` | int \| null | Feed'in kendi bildirdiği zaman — bizim `response_ts`'imiz değil. Oracle gecikmesini ölçmenin tek yolu bu. |
+| `feed_ts_source` | string | `point` \| `none` — `feed_ts` nereden geldi. `point`: RTDS'in `payload.data[]` dökümündeki nokta-bazlı zaman damgasından (tek doğrulanmış kaynak, bkz. docs/decisions.md K-08/K-27/K-28). `none`: `feed_ts` bilinmiyor (`null`) — REST bacağı, ya da WS'te henüz nokta-bazlı bir zaman damgası çıkarılamamış. |
 
 `source` *nasıl* aldığımızı, `venue` *kimden* aldığımızı anlatır — ikisi
 birlikte tutulur çünkü aynı `source` (`rest_poll`) farklı `venue`'lere
@@ -149,6 +150,10 @@ Tutarlılık kuralları:
 - `feed_ts: null` ile `value` dolu olması geçerlidir — bazı REST uçları
   zaman damgası döndürmez (`source: "rest_poll"` tipik örnek). Bu
   bilinçli bir gevşeklik; katılaştırmadan önce burayı tartışmaya aç.
+- `feed_ts: null` ⟺ `feed_ts_source: "none"`. `feed_ts` doluysa
+  `feed_ts_source: "point"` olmak zorundadır — şu an `feed_ts`'in tek
+  doğrulanmış kaynağı nokta-bazlı zaman damgası olduğu için başka bir
+  değer geçerli değil (bkz. docs/decisions.md K-29).
 
 ### 4.2 `decision`
 
@@ -204,6 +209,9 @@ PnL burada hesaplanmaz. Türetme katmanının işi.
 | `detail` | string \| null | |
 | `discovery_slug_hits` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur, diğer event'lerde alan hiç yok |
 | `discovery_listing_hits` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur, diğer event'lerde alan hiç yok |
+| `rtds_dropped_not_json` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur |
+| `rtds_dropped_unknown_symbol` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur |
+| `rtds_dropped_unknown_shape` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur |
 
 `tick` en az 60 saniyede bir yazılır. İki tick arasındaki boşluk = kapsama
 kaybı.
@@ -212,6 +220,13 @@ kaybı.
 sırasıyla hangi yoldan (`gamma_event_slug` | `gamma_event_listing`, bkz.
 bölüm 4 `raw[]`) bulunduğunun job başına toplam sayısı — bkz.
 docs/decisions.md K-21.
+
+`rtds_dropped_not_json`/`rtds_dropped_unknown_symbol`/`rtds_dropped_unknown_shape`:
+`RTDSClient._handle_message`'ın sessizce düşürdüğü çerçevelerin job başına
+toplam sayısı — JSON ayrıştırılamadı / `payload.symbol` tanınmıyor / ne
+kullanılabilir `value` ne `data` noktası var. Çerçevenin kendisi
+kaydedilmez, yalnızca sayılır — tam düzeltme (ham çerçeve kaydı) hâlâ açık.
+Bkz. docs/decisions.md K-25/K-29.
 
 ---
 

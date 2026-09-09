@@ -498,6 +498,15 @@ subprotocol) ve WS kapanma kodu/sebebini kaydeder. Bu ölçüm
 sonuçlanmadan `_handle_message`'ın düzeltmesi de, sıfırın kök nedeni
 hakkında bir karar da verilmez.
 
+**Güncelleme (K-29) — kısmen görünür hale getirildi, tam düzeltme hâlâ
+açık:** `_handle_message`'ın üç sessiz `return`'ü artık üç ayrı sayaç
+artırıyor (`dropped_not_json`, `dropped_unknown_symbol`,
+`dropped_unknown_shape`) ve bu sayaçlar `job_end` heartbeat'ine
+yazılıyor — hangi türden düşme ne sıklıkta oluyor artık toplu olarak
+görünür. Ama bu yalnızca **sayma**: düşürülen çerçevenin kendisi hâlâ
+kaydedilmiyor, kod yolu/davranışı değişmedi. Tam düzeltme (ham çerçeve
+kaydı, K-06 tam uyumu) hâlâ ayrı bir iş.
+
 ---
 
 ## K-26 — İkinci tur sessizlik teşhisi: şekil/header/süre eksenleri ayrıştırılıyor, henüz karar yok
@@ -678,3 +687,53 @@ bir boyut: chainlink'in "tazelik" beklentisi Binance'inkiyle aynı sabit
 değerlerle ölçülemeyebilir. Şimdilik yalnızca gözlem olarak kaydediliyor,
 eşik/metrik değişikliği yok (metrik katmanı şu anki fazın dışında,
 K-15).
+
+---
+
+## K-29 — RTDS abonelik/eşleştirme/feed_ts düzeltmesi: action alanı, symbol-bazlı topic, `feed_ts_source`
+
+K-27 ve K-28a/b/c'de ölçülen üç bulgu tek PR'da koda geçirildi
+(`collector/rtds_ws.py`, `collector/sampler.py`, `collector/heartbeat.py`,
+`collector/runner.py`):
+
+1. **`action` alanı** (K-27) — abonelik zarfı artık
+   `{"action": "subscribe", "subscriptions": [...]}`. Eklenmeden önce
+   sunucu abonelik mesajını sessizce yok sayıyordu.
+2. **Symbol-bazlı topic eşleştirmesi** (K-28a) — `_handle_message` artık
+   `envelope.get("topic")` yerine `payload.get("symbol")`'den
+   `_TOPIC_BY_SYMBOL` (`_SYMBOL_BY_TOPIC`'in tersi) ile hedef topic'i
+   belirliyor. Zarftaki `topic` alanı ayırt edici değildi — chainlink
+   verisi `crypto_prices` etiketiyle gelebiliyordu, eskiden bu chainlink
+   cache'inin hiç dolmamasına (ya da binance cache'ine karışmasına) yol
+   açıyordu.
+3. **`feed_ts_source`** (K-08 güncellemesi) — `feed_ts_ms` artık yalnızca
+   `payload.data[]` içinden seçilen (en büyük `timestamp`'li, körlemesine
+   `[-1]` değil — K-28c: chainlink dökümü düzensiz aralıklı) bir noktadan
+   geliyor; bu durumda `feed_ts_source: "point"`. Aksi halde (`data` yok/
+   boş, ya da kullanılabilir nokta yok) `feed_ts_ms: None`,
+   `feed_ts_source: "none"` — zarf `timestamp`'i (`publish_ts_ms`) hiçbir
+   zaman `feed_ts` yerine kullanılmaz. Yeni alan `schemas/round.schema.json`
+   `oracle_feed`'e zorunlu eklendi, `feed_ts ⟺ feed_ts_source` tutarlılığı
+   iki `if/then` kuralıyla şemada ifade edildi (K-13'teki gibi — Python
+   tarafında ek kontrol gerekmedi, cross-field karşılaştırma değil, salt
+   tip/sabit kısıtı).
+
+Ayrıca (kullanıcı onayıyla, kapsam genişletildi): **K-25'in üç sessiz
+`return`'ü artık sayılıyor** (`dropped_not_json`, `dropped_unknown_symbol`,
+`dropped_unknown_shape`), `job_end` heartbeat'ine yazılıyor —
+`schemas/heartbeat.schema.json`'a üç opsiyonel alan eklendi. Bu **sayma**
+düzeltmesi — çerçevenin kendisi kaydedilmiyor, davranış/kod yolu
+değişmedi; tam düzeltme (ham çerçeve kaydı) hâlâ K-25'te açık madde.
+
+**Bilinçli olarak bu PR'a dahil edilmeyenler:**
+
+- **K-23 sessizlik eşikleri** (`silence_warn_sec`/`silence_reconnect_sec`)
+  — sayılar değişmedi. K-28b (60s'de sıfır update çerçevesi) tek koşumla
+  DOĞRULANMADI; sayıları değiştirmek için önce steady-state update
+  varsayımının doğrulanması gerekiyor — ayrı bir ölçüm.
+- **K-28b'nin kendisi** — WS'in gerçek zamanlı bir akış mı yoksa
+  abone-olunca-tek-seferlik-döküm mü olduğu hâlâ açık soru; K-18'in
+  taşıma karşılaştırması varsayımı da buna bağlı, bu PR'da dokunulmadı.
+
+`schema_version` **1'de kaldı** (K-14 — henüz gerçek veri toplanmadığı
+için).
