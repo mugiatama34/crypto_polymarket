@@ -737,3 +737,39 @@ değişmedi; tam düzeltme (ham çerçeve kaydı) hâlâ K-25'te açık madde.
 
 `schema_version` **1'de kaldı** (K-14 — henüz gerçek veri toplanmadığı
 için).
+
+---
+
+## K-30 — `LongjobRunner._maybe_commit`, `data/rejected/`'ı commit etmiyor (BİLİNEN AÇIK, DÜZELTİLMEDİ)
+
+Shakedown workflow'u hazırlanırken (`.github/workflows/longjob_shakedown.yml`)
+fark edildi: `LongjobRunner._maybe_commit` (`collector/runner.py`) yalnızca
+`[self.raw_base_dir, self.coverage_base_dir, self.state_path.parent]`'ı
+stage ediyor — `self.rejected_base_dir` listede yok, ne ~15 dakikalık ara
+commit'lerde ne de kapanıştaki zorlanmış son commit'te (`force=True`).
+`self.rejected_base_dir` constructor'da tutuluyor ve `writer.write_round`/
+`writer.write_heartbeat`'e geçiriliyor (satıra yazılıyor), ama runner'ın
+kendi git commit döngüsü onu hiç görmüyor.
+
+Sonuç: gerçek (6 saatlik) bir `longjob` koşumunda `data/rejected/` altına
+yazılan satırlar, iş normal bitip `job_end` sonrası biri elle commit atana
+kadar hiç push edilmiyor. CLAUDE.md'nin değişmez kuralı 5 ("doğrulamayı
+geçemeyen satır `data/rejected/`'a yazılır, düşürülmez") satırın
+*yazılmasını* garanti ediyor, ama K-06'nın "çökerse kayıp en fazla 15
+dakika" beklentisi `data/rejected/` için geçerli değil — iş ortasında
+çökerse (crash, Actions timeout, spot kesintisi) o ana kadar biriken
+reddedilen satırlar yalnızca yerel diskte kalır ve kaybolur, `data/raw/`/
+`data/coverage/` için geçerli olan 15 dakikalık koruma burada yok.
+
+Bu shakedown workflow'unda (`longjob_shakedown.yml`) iş sonunda ayrı bir
+workflow-seviyesi commit adımı `data/rejected/`'ı da stage ederek bu
+boşluğu KAPATIYOR — ama bu yalnızca elle tetiklenen kısa koşum için
+geçerli bir yama; üretimdeki asıl 6 saatlik `longjob` döngüsünde (ayrı
+workflow, henüz yok) böyle bir son adım olmayabilir, ya da olsa bile
+çökme anında hâlâ devreye girmez.
+
+**Sonuç:** `_maybe_commit`'in stage listesine `self.rejected_base_dir`
+eklenmesi gerekiyor — bu **bu PR'a dahil edilmedi**, ayrı bir iş. Burada
+yalnızca bulgu ve kök neden kaydediliyor (CLAUDE.md "bir seferde tek
+bileşen" — bu bir toplayıcı davranış değişikliği, şu anki iş yalnızca
+workflow + rapor script'i).

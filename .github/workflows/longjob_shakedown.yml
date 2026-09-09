@@ -1,0 +1,89 @@
+name: Longjob kisa gercek kosum (shakedown)
+
+# Yalnizca elle tetiklenir. `python -m collector.main`'i belirtilen sure
+# boyunca CALISTIRIR (probe.yml'nin aksine -- bu gercek gozlem verisi
+# toplar, tek seferlik prob degil). Ciktiyi hem is ciktisi (artifact)
+# olarak yukler hem de data/raw/, data/coverage/, data/rejected/ ve
+# shakedown_output/ altina repoya commit+push eder.
+#
+# LONGJOB_GIT_PUSH=1 bilinclidir: CLAUDE.md git kurali ("~15 dakikada bir
+# commit, cokerse kayip en fazla 15 dk") ancak push da aciksa gercek
+# koruma sagliyor.
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: "Kosum suresi (dakika)"
+        type: string
+        default: "90"
+
+permissions:
+  contents: write
+
+jobs:
+  shakedown:
+    runs-on: ubuntu-latest
+    # duration_minutes'ten belirgin buyuk -- LongjobRunner kendi
+    # job_duration_sec sinirina ulasip temiz kapanmadan Actions
+    # tarafindan kesilirse job_end heartbeat'i hic yazilmaz.
+    timeout-minutes: ${{ fromJson(inputs.duration_minutes) + 15 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Git kimligini ayarla
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sureyi saniyeye cevir
+        id: duration
+        run: echo "seconds=$(( ${{ inputs.duration_minutes }} * 60 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Toplayiciyi calistir
+        env:
+          LONGJOB_GIT_PUSH: "1"
+          LONGJOB_DURATION_SEC: ${{ steps.duration.outputs.seconds }}
+        run: python -m collector.main
+
+      - name: Saglik raporunu uret
+        if: always()
+        run: python -m scripts.shakedown_report
+
+      - name: Ciktilari yukle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shakedown-output
+          path: |
+            data/raw/
+            data/coverage/
+            data/rejected/
+            shakedown_output/
+          retention-days: 14
+
+      - name: Ciktilari commit et ve push'la
+        if: always()
+        run: |
+          set -e
+          git add data/raw data/coverage data/rejected shakedown_output
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "shakedown: $(date -u +%Y-%m-%dT%H:%M:%SZ) kosumunun ciktisi"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1
