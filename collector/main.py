@@ -10,6 +10,10 @@ job_duration_sec olarak gecirilir (kisa gercek kosumlar icin --
 bkz. .github/workflows/longjob_shakedown.yml). Ayarlanmazsa
 `LongjobRunner`'in kendi varsayilani (6 saat) kullanilir, davranis
 degismez.
+
+`COLLECTOR_WS_LEG_ENABLED` ortam degiskeni ws bacagini (RTDS + CLOB WS)
+acar/kapatir -- varsayilan kapali (bkz. docs/decisions.md K-32). Kapaliyken
+RTDS ve CLOB WS baglantilari hic kurulmaz.
 """
 
 import asyncio
@@ -28,6 +32,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("longjob")
 
 DURATION_ENV_VAR = "LONGJOB_DURATION_SEC"
+WS_LEG_ENABLED_ENV_VAR = "COLLECTOR_WS_LEG_ENABLED"
 
 
 def _job_duration_sec_from_env() -> "int | None":
@@ -35,6 +40,10 @@ def _job_duration_sec_from_env() -> "int | None":
     if not value:
         return None
     return int(value)
+
+
+def _ws_leg_enabled_from_env() -> bool:
+    return os.environ.get(WS_LEG_ENABLED_ENV_VAR) == "1"
 
 
 async def _amain() -> None:
@@ -58,6 +67,7 @@ async def _amain() -> None:
             rtds_client=rtds_client,
             clob_ws_client=clob_ws_client,
             clock=clock,
+            ws_leg_enabled=_ws_leg_enabled_from_env(),
             **runner_kwargs,
         )
         await runner.run()

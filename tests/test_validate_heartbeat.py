@@ -82,3 +82,29 @@ def test_discovery_counters_present_on_tick_is_still_valid():
     ok, errors = validate(record, "heartbeat")
     assert ok is True
     assert errors == []
+
+
+def test_job_end_with_rounds_error_and_clob_ws_dropped_counters_passes():
+    # K-32: rounds_error (rounds_missed'den ayri) + K-25'in CLOB WS
+    # karsiligi olan uc dropped sayaci -- rtds_dropped_* ile ayni desen.
+    record = copy.deepcopy(VALID_HEARTBEAT)
+    record["event"] = "job_end"
+    record["rounds_seen"] = 5
+    record["rounds_missed"] = 1
+    record["rounds_error"] = 2
+    record["clob_ws_dropped_not_json"] = 1
+    record["clob_ws_dropped_unknown_event_type"] = 3
+    record["clob_ws_dropped_unknown_shape"] = 0
+    ok, errors = validate(record, "heartbeat")
+    assert ok is True
+    assert errors == []
+
+
+def test_rounds_error_wrong_type_fails():
+    record = copy.deepcopy(VALID_HEARTBEAT)
+    record["event"] = "job_end"
+    record["rounds_seen"] = 1
+    record["rounds_missed"] = 0
+    record["rounds_error"] = "2"
+    ok, errors = validate(record, "heartbeat")
+    assert ok is False

@@ -117,6 +117,108 @@ async def test_price_change_applied_on_top_of_book_snapshot():
     assert [0.48, 10.0] not in snap["book_side"]["bids_top5"]
 
 
+NOT_JSON_MESSAGE = "not valid json {"
+
+UNKNOWN_EVENT_TYPE_MESSAGE = json.dumps({"event_type": "last_trade_price", "asset_id": "111"})
+
+BOOK_EVENT_MISSING_ASSET_ID = json.dumps(
+    {
+        "event_type": "book",
+        "bids": [{"price": "0.48", "size": "10"}],
+        "asks": [{"price": "0.52", "size": "8"}],
+        "timestamp": "1717000060000",
+    }
+)
+
+BOOK_EVENT_MALFORMED_LEVEL = json.dumps(
+    {
+        "event_type": "book",
+        "asset_id": "111",
+        "bids": [{"price": "not-a-number", "size": "10"}],
+        "asks": [{"price": "0.52", "size": "8"}],
+        "timestamp": "1717000060000",
+    }
+)
+
+PRICE_CHANGE_EVENT_EMPTY_LIST = json.dumps(
+    {"event_type": "price_change", "timestamp": "1717000061000", "price_changes": []}
+)
+
+
+async def _run_single_message(message):
+    """K-25 karsiligi testleri icin ortak kalip: bir mesaj gonder, client
+    kapansin, sayaclari doner."""
+    ws = FakeWebSocket([message])
+    client = ClobMarketWSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    async def stop_soon():
+        # Mesaj isleme asenkron -- bir tur event loop'a birak, sonra durdur.
+        for _ in range(5):
+            await asyncio.sleep(0)
+        ws.closed_by_test = True
+        client.stop()
+
+    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=5)
+    return client
+
+
+@pytest.mark.asyncio
+async def test_not_json_message_counted_and_not_raised():
+    client = await _run_single_message(NOT_JSON_MESSAGE)
+    assert client.dropped_not_json == 1
+    assert client.dropped_unknown_event_type == 0
+    assert client.dropped_unknown_shape == 0
+
+
+@pytest.mark.asyncio
+async def test_unknown_event_type_counted():
+    client = await _run_single_message(UNKNOWN_EVENT_TYPE_MESSAGE)
+    assert client.dropped_unknown_event_type == 1
+    assert client.dropped_not_json == 0
+    assert client.dropped_unknown_shape == 0
+
+
+@pytest.mark.asyncio
+async def test_book_event_missing_asset_id_counted_as_unknown_shape():
+    client = await _run_single_message(BOOK_EVENT_MISSING_ASSET_ID)
+    assert client.dropped_unknown_shape == 1
+    assert client.snapshot("111") is None
+
+
+@pytest.mark.asyncio
+async def test_book_event_malformed_price_counted_and_does_not_raise():
+    """Eskiden `float("not-a-number")` yakalanmiyordu -- _handle_message
+    patlar, PersistentWSClient'in genel except'ine dusup sahte bir
+    'baglanti koptu' gibi goruniyordu. Simdi sayiliyor, baglanti kopmuyor."""
+    client = await _run_single_message(BOOK_EVENT_MALFORMED_LEVEL)
+    assert client.dropped_unknown_shape == 1
+    assert client.snapshot("111") is None
+
+
+@pytest.mark.asyncio
+async def test_price_change_with_empty_list_counted_as_unknown_shape():
+    client = await _run_single_message(PRICE_CHANGE_EVENT_EMPTY_LIST)
+    assert client.dropped_unknown_shape == 1
+
+
+@pytest.mark.asyncio
+async def test_valid_book_and_price_change_do_not_increment_any_drop_counters():
+    ws = FakeWebSocket([BOOK_EVENT, PRICE_CHANGE_EVENT])
+    client = ClobMarketWSClient(connect_fn=lambda url: ws, sleep_fn=_instant_sleep)
+
+    async def stop_soon():
+        while client.snapshot("111") is None or client.snapshot("111")["venue_ts_ms"] != 1717000061000:
+            await asyncio.sleep(0)
+        ws.closed_by_test = True
+        client.stop()
+
+    await asyncio.wait_for(asyncio.gather(client.run(), stop_soon()), timeout=5)
+
+    assert client.dropped_not_json == 0
+    assert client.dropped_unknown_event_type == 0
+    assert client.dropped_unknown_shape == 0
+
+
 @pytest.mark.asyncio
 async def test_resubscribes_on_reconnect():
     ws1 = FakeWebSocket([])
