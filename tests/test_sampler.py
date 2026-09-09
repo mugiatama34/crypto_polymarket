@@ -62,8 +62,8 @@ async def test_build_ws_observation_all_present_is_ok_and_schema_valid():
     )
     rtds = FakeCache(
         {
-            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000},
-            "crypto_prices_chainlink": {"value": 66998.0, "feed_ts_ms": 1717000059800},
+            "crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000, "feed_ts_source": "point"},
+            "crypto_prices_chainlink": {"value": 66998.0, "feed_ts_ms": 1717000059800, "feed_ts_source": "point"},
         }
     )
     now = _clock([1717000060010, 1717000060010, 1717000060015])
@@ -117,12 +117,14 @@ async def test_build_ws_observation_includes_rtds_raw_envelope_in_raw_entries():
             "crypto_prices": {
                 "value": 67000.0,
                 "feed_ts_ms": 1717000060000,
+                "feed_ts_source": "point",
                 "publish_ts_ms": 1717000060005,
                 "raw_envelope": binance_envelope,
             },
             "crypto_prices_chainlink": {
                 "value": 66998.0,
                 "feed_ts_ms": 1717000059800,
+                "feed_ts_source": "point",
                 "publish_ts_ms": 1717000059805,
                 "raw_envelope": chainlink_envelope,
             },
@@ -153,7 +155,7 @@ async def test_build_ws_observation_partial_when_oracle_missing():
             "222": {"book_side": _full_book_side(), "venue_ts_ms": 1717000060000},
         }
     )
-    rtds = FakeCache({"crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000}})
+    rtds = FakeCache({"crypto_prices": {"value": 67000.0, "feed_ts_ms": 1717000060000, "feed_ts_source": "point"}})
     now = _clock([1, 1, 2])
 
     observation, _ = await build_ws_observation(
@@ -166,7 +168,13 @@ async def test_build_ws_observation_partial_when_oracle_missing():
     )
 
     assert observation["status"] == "partial"
-    assert observation["btc_oracle"] == {"value": None, "source": "none", "venue": "none", "feed_ts": None}
+    assert observation["btc_oracle"] == {
+        "value": None,
+        "source": "none",
+        "venue": "none",
+        "feed_ts": None,
+        "feed_ts_source": "none",
+    }
     assert "btc_oracle" in observation["error"]
 
 
@@ -237,8 +245,15 @@ async def test_build_rest_observation_ok_with_exchange():
         "source": "rest_poll",
         "venue": "binance",
         "feed_ts": None,
+        "feed_ts_source": "none",
     }
-    assert observation["btc_oracle"] == {"value": None, "source": "none", "venue": "none", "feed_ts": None}
+    assert observation["btc_oracle"] == {
+        "value": None,
+        "source": "none",
+        "venue": "none",
+        "feed_ts": None,
+        "feed_ts_source": "none",
+    }
     assert len(raw_entries) == 3
 
     ok, errors = validate(_wrap_round(observation), "round")
@@ -297,7 +312,13 @@ async def test_build_rest_observation_no_exchange_available():
         )
 
     assert observation["status"] == "ok"  # yalnizca book attempt edildi, ikisi de basarili
-    assert observation["btc_reference"] == {"value": None, "source": "none", "venue": "none", "feed_ts": None}
+    assert observation["btc_reference"] == {
+        "value": None,
+        "source": "none",
+        "venue": "none",
+        "feed_ts": None,
+        "feed_ts_source": "none",
+    }
 
 
 @pytest.mark.asyncio

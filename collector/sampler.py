@@ -23,7 +23,7 @@ def _default_now_ms() -> int:
 
 
 def _empty_oracle_feed() -> dict:
-    return {"value": None, "source": "none", "venue": "none", "feed_ts": None}
+    return {"value": None, "source": "none", "venue": "none", "feed_ts": None, "feed_ts_source": "none"}
 
 
 def _offset_actual_sec(close_ts_ms: int, fired_at_ms: int) -> float:
@@ -117,6 +117,7 @@ async def build_ws_observation(
             "source": "rtds_binance",
             "venue": "polymarket_rtds",
             "feed_ts": binance_ws["feed_ts_ms"],
+            "feed_ts_source": binance_ws["feed_ts_source"],
         }
         if binance_ws
         else _empty_oracle_feed()
@@ -127,6 +128,7 @@ async def build_ws_observation(
             "source": "rtds_chainlink",
             "venue": "chainlink",
             "feed_ts": chainlink_ws["feed_ts_ms"],
+            "feed_ts_source": chainlink_ws["feed_ts_source"],
         }
         if chainlink_ws
         else _empty_oracle_feed()
@@ -240,6 +242,7 @@ async def build_rest_observation(
             "source": "rest_poll",
             "venue": exch_result.exchange,
             "feed_ts": None,
+            "feed_ts_source": "none",
         }
         raw_entries.append({"endpoint": f"{exch_result.exchange}_ticker", "payload": exch_result.raw})
         successes += 1

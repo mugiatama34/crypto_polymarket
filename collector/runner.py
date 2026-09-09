@@ -253,5 +253,11 @@ class LongjobRunner:
             rounds_missed=self.rounds_missed,
             discovery_slug_hits=self.discovery_slug_hits,
             discovery_listing_hits=self.discovery_listing_hits,
+            # K-25/K-29: rtds_client test double'larinda bu sayaclar
+            # olmayabilir (bkz. _drain_rtds_alerts'teki ayni getattr
+            # deseni) -- boyle durumda 0 yazilir.
+            rtds_dropped_not_json=getattr(self.rtds_client, "dropped_not_json", 0),
+            rtds_dropped_unknown_symbol=getattr(self.rtds_client, "dropped_unknown_symbol", 0),
+            rtds_dropped_unknown_shape=getattr(self.rtds_client, "dropped_unknown_shape", 0),
             detail="6 saat siniri yaklasti, temiz kapanis",
         )
