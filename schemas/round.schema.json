@@ -7,7 +7,7 @@
   "required": [
     "schema_version", "runner_id", "job_id", "data_lane", "round_id",
     "condition_id", "token_ids", "open_ts", "close_ts", "observations",
-    "decision", "status", "raw"
+    "decision", "status", "timing_valid", "raw"
   ],
   "properties": {
     "schema_version": { "const": 1 },
@@ -38,6 +38,7 @@
       ]
     },
     "status": { "enum": ["complete", "partial", "missed"] },
+    "timing_valid": { "type": "boolean" },
     "raw": { "type": "array" }
   },
   "$defs": {

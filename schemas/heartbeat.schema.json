@@ -20,6 +20,7 @@
     "discovery_slug_hits": { "type": "integer" },
     "discovery_listing_hits": { "type": "integer" },
     "rounds_error": { "type": "integer" },
+    "rounds_skipped_stale": { "type": "integer" },
     "rtds_dropped_not_json": { "type": "integer" },
     "rtds_dropped_unknown_symbol": { "type": "integer" },
     "rtds_dropped_unknown_shape": { "type": "integer" },

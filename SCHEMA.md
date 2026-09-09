@@ -73,6 +73,7 @@ Bir satır = bir 5 dakikalık market.
 | `observations` | array | Bkz. 4.1 |
 | `decision` | object \| null | Bkz. 4.2 |
 | `status` | string | `complete` \| `partial` \| `missed` |
+| `timing_valid` | bool | Turun `observations[]`'ındaki tüm `offset_actual_sec` değerleri, ilgili `offset_sec`'ten ±30 sn içinde mi. `status`'tan **bağımsız**: `status` çağrıların başarılı olup olmadığını, `timing_valid` turun zamanında örneklenip örneklenmediğini söyler — bkz. docs/decisions.md K-34/K-35. |
 | `raw` | array | Ham API yanıtları, sırayla |
 
 ### 4.1 `observations[]`
@@ -212,6 +213,7 @@ PnL burada hesaplanmaz. Türetme katmanının işi.
 | `rtds_dropped_not_json` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur |
 | `rtds_dropped_unknown_symbol` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur |
 | `rtds_dropped_unknown_shape` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur |
+| `rounds_skipped_stale` | int | **Opsiyonel** — yalnızca `job_end`'de bulunur. Restart sonrası state'ten devam edilirken backlog `STALE_BACKLOG_ROUNDS` turdan fazla geride kalmışsa hiç işlenmeden atlanan tur sayısı — bkz. docs/decisions.md K-34. |
 
 `tick` en az 60 saniyede bir yazılır. İki tick arasındaki boşluk = kapsama
 kaybı.
