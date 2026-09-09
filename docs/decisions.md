@@ -444,3 +444,42 @@ Geçiş (varsa) ayrı bir PR'da, bu ölçüm sonucu okunduktan sonra ele
 alınır. Bu bilinen ve izlenen bir risktir, keşfedilmemiş bir boşluk
 değil — CLAUDE.md'nin "tahmin üretme, sor" kuralı burada "ölç, sonra
 karar ver" olarak uygulanıyor.
+
+---
+
+## K-25 — `rtds_ws.py`'nin sessiz `return`'leri K-06'ya aykırı ama şu anki sıfırın sebebi değil
+
+`RTDSClient._handle_message` (collector/rtds_ws.py) üç noktada sessizce
+`return` ediyor: JSON parse hatası, `topic` `self.cache`'te yoksa,
+`payload` dict değilse veya `value` alanı yoksa (üçüncüsü "initial data
+dump veya tanınmayan şekil" yorumuyla bilinçli eklenmişti). Hiçbirinde
+sayaç/log yok — K-06'nın ("boşluk da veridir") ihlali: gerçek bir
+çerçeve gelip tanınmayan şekilde olsa bile, sessizlik izleyicisi (K-23)
+bunu "hiç mesaj yok" sayıp yanıltıcı bir "sessizlik" alarmı üretir;
+alarm "sunucu sustu" der ama aslında "biz tanımadığımız bir çerçeveyi
+attık" olabilir.
+
+Ama bu, `probe_output/20260908T214511Z`'deki `message_count: 0` /
+`count: 0` sonucunun açıklaması DEĞİL. O çıktıyı üreten
+`scripts/probe.py._probe_rtds` (`rtds_messages.json`) hiçbir filtre
+uygulamıyor — JSON olsun olmasın her çerçeveyi ham olarak listeye
+ekliyor — ve o da sıfır gösterdi. Filtrelemeyen bir prob da sıfır
+gösterdiği için, sorunun `_handle_message`'ın seçiciliğinden değil,
+bağlantının kendisinden (ya da RTDS'in bu bağlantıya hiç çerçeve
+yollamamasından) geldiği düşünülüyor — ama `_probe_rtds`'in pencere
+süresi kısa (13s) ve tek denemeydi; `rtds_gap_distribution.json` (60s,
+her iki topic) ise `_handle_message` ile AYNI filtreyi taşıyor
+(`topic in arrivals and payload.value var`), o yüzden onun `count: 0`'ı
+tek başına kesin kanıt sayılmaz.
+
+**Sonuç:** `_handle_message`'ın üç sessiz `return`'ü ayrı bir işte
+düzeltilecek (en azından bir sayaç/log eklenecek) — bu bilinen bir
+bug'dır ama bu PR'a karıştırılmadı. `scripts/rtds_raw_capture.py`
+probu bu ayrımı netleştirmek için eklendi: hiçbir filtre uygulamadan,
+önce abonelik göndermeden dinler (sunucu kendiliğinden bir şey yolluyor
+mu), sonra `crypto_prices`'a filtresiz abone olur, sonra tamamen farklı
+(crypto-dışı, aday) topic'lere filtresiz abone olur — ayrıca HTTP el
+sıkışma ayrıntısını (durum kodu, response header'ları, seçilen
+subprotocol) ve WS kapanma kodu/sebebini kaydeder. Bu ölçüm
+sonuçlanmadan `_handle_message`'ın düzeltmesi de, sıfırın kök nedeni
+hakkında bir karar da verilmez.
