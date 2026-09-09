@@ -78,6 +78,7 @@ VALID_ROUND = {
         },
     },
     "status": "partial",
+    "timing_valid": True,
     "raw": [{"endpoint": "gamma", "payload": {"foo": "bar"}}],
 }
 

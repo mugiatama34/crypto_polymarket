@@ -14,10 +14,22 @@ from typing import Optional
 from . import exchange_probe, gamma_client, git_commit, sampler, writer
 from .clock import RealClock
 from .heartbeat import TICK_INTERVAL_SEC, HeartbeatWriter
-from .round_calendar import OFFSETS_SEC, ROUND_SECONDS, next_round_start_epoch_s, offset_target_ts_ms, round_slug
+from .round_calendar import (
+    OFFSETS_SEC,
+    ROUND_SECONDS,
+    is_timing_valid,
+    next_round_start_epoch_s,
+    offset_target_ts_ms,
+    round_slug,
+    round_start_epoch_s,
+)
 from .state import load_state, save_state
 
 logger = logging.getLogger(__name__)
+
+# K-34: state'ten devam ederken bu kadar turdan fazla geride kalinmissa
+# backlog islenmez, guncel tur sinirindan baslanir.
+STALE_BACKLOG_ROUNDS = 2
 
 DEFAULT_JOB_DURATION_SEC = 6 * 60 * 60
 DEFAULT_SHUTDOWN_MARGIN_SEC = 2 * 60
@@ -79,6 +91,8 @@ class LongjobRunner:
         self.rounds_error = 0
         self.discovery_slug_hits = 0
         self.discovery_listing_hits = 0
+        # K-34: state'ten devam ederken atlanan (islenmeyen) backlog turu sayisi.
+        self.rounds_skipped_stale = 0
 
     async def _sleep_with_heartbeat(self, target_ms: int) -> None:
         """`target_ms`'e kadar bekler ama en fazla TICK_INTERVAL_SEC'lik
@@ -187,6 +201,10 @@ class LongjobRunner:
             "observations": observations,
             "decision": None,
             "status": status,
+            # K-35: status'tan bagimsiz -- status cagrilarin basarili olup
+            # olmadigini, timing_valid turun zamaninda ornekelenip
+            # ornekelenmedigini soyler (bkz. K-34).
+            "timing_valid": is_timing_valid(observations),
             "raw": raw,
         }
 
@@ -242,6 +260,25 @@ class LongjobRunner:
         state = load_state(self.state_path)
         if state.last_processed_round_epoch_s is not None:
             round_start_s = next_round_start_epoch_s(state.last_processed_round_epoch_s)
+            now_round_start_s = round_start_epoch_s(self.clock.now_ms() / 1000)
+            rounds_behind = (now_round_start_s - round_start_s) / ROUND_SECONDS
+            if rounds_behind > STALE_BACKLOG_ROUNDS:
+                # K-34: restart sonrasi eski state cok geride kalmis --
+                # backlog'u saniyeler icinde islemek (_sleep_with_heartbeat
+                # gecmis hedefte hic beklemedigi icin) kapanmis marketler
+                # icin anlamsiz, yaniltici tur uretiyordu (bkz. rapor
+                # bulgusu 2026-09-09). Backlog islenmez, atlanan tur sayisi
+                # kaydedilir (K-06 -- sessiz atlama yok), guncel tur
+                # sinirindan baslanir.
+                skipped = int(rounds_behind)
+                fresh_round_start_s = next_round_start_epoch_s(self.clock.now_ms() / 1000)
+                self.rounds_skipped_stale += skipped
+                self.heartbeat.error(
+                    f"backlog atlandi: state {round_slug(round_start_s)}'den devam edecekti, "
+                    f"~{skipped} tur geride ({STALE_BACKLOG_ROUNDS} tur esiginin uzerinde); "
+                    f"{round_slug(fresh_round_start_s)}'den devam ediliyor"
+                )
+                round_start_s = fresh_round_start_s
         else:
             round_start_s = next_round_start_epoch_s(self.clock.now_ms() / 1000)
 
@@ -282,6 +319,7 @@ class LongjobRunner:
                 rounds_seen=self.rounds_seen,
                 rounds_missed=self.rounds_missed,
                 rounds_error=self.rounds_error,
+                rounds_skipped_stale=self.rounds_skipped_stale,
                 discovery_slug_hits=self.discovery_slug_hits,
                 discovery_listing_hits=self.discovery_listing_hits,
                 # K-25/K-29: rtds_client/clob_ws_client test double'larinda

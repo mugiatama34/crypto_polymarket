@@ -149,6 +149,7 @@ def test_build_summary_computes_expected_sections(tmp_path, monkeypatch):
         "rounds_seen": None,
         "rounds_missed": None,
         "rounds_error": None,
+        "rounds_skipped_stale": None,
     }
     assert summary["round_error_exception_type_counts"] == {}
 
@@ -262,4 +263,208 @@ def test_round_error_exception_type_counts_parses_runner_error_detail(tmp_path):
         "rounds_seen": 0,
         "rounds_missed": 1,
         "rounds_error": 2,
+        "rounds_skipped_stale": None,
     }
+
+
+def _setup_two_job_fixtures(tmp_path: Path) -> dict:
+    """K-34/K-35 rapor bulgusu: iki farkli job_id (eski koşum + yeni
+    koşum) ayni gunun dosyalarinda. --job-id/--since izolasyonunu ve
+    metrics_by_job_id kirilimini test etmek icin."""
+    raw_dir = tmp_path / "raw"
+    coverage_dir = tmp_path / "coverage"
+    rejected_dir = tmp_path / "rejected"
+
+    def _obs(offset_actual_sec: float) -> dict:
+        return {
+            "offset_sec": 60,
+            "offset_actual_sec": offset_actual_sec,
+            "response_ts": 1000,
+            "staleness_ms": None,
+            "latency_ms": 100,
+            "transport": "rest",
+            "btc_reference": _oracle_feed("coinbase", "none"),
+            "btc_oracle": _oracle_feed("none", "none"),
+            "status": "ok",
+        }
+
+    job_old_round = {
+        "job_id": "job-old",
+        "round_id": "r-old-1",
+        "open_ts": 500,
+        "close_ts": 800,
+        "status": "complete",
+        "timing_valid": True,
+        "observations": [_obs(60.0)],
+        "raw": [],
+    }
+    job_new_round_complete = {
+        "job_id": "job-new",
+        "round_id": "r-new-1",
+        "open_ts": 5000,
+        "close_ts": 5300,
+        "status": "complete",
+        "timing_valid": False,  # K-35: backlog artigi -- cagrilar basarili ama gec ornekelendi
+        "observations": [_obs(-9000.0)],
+        "raw": [],
+    }
+    job_new_round_partial = {
+        "job_id": "job-new",
+        "round_id": "r-new-2",
+        "open_ts": 5300,
+        "close_ts": 5600,
+        "status": "partial",
+        "timing_valid": False,
+        "observations": [_obs(-8700.0)],
+        "raw": [],
+    }
+    _write_jsonl(
+        raw_dir / "runner=longjob" / "date=2026-01-01" / "rounds.jsonl",
+        [job_old_round, job_new_round_complete, job_new_round_partial],
+    )
+
+    heartbeats = [
+        {"job_id": "job-old", "event": "job_start", "ts": 100},
+        {
+            "job_id": "job-old",
+            "event": "job_end",
+            "ts": 900,
+            "rounds_seen": 1,
+            "rounds_missed": 0,
+            "rounds_error": 0,
+            "rounds_skipped_stale": 0,
+        },
+        {"job_id": "job-new", "event": "job_start", "ts": 4900},
+        {
+            "job_id": "job-new",
+            "event": "job_end",
+            "ts": 5700,
+            "rounds_seen": 2,
+            "rounds_missed": 0,
+            "rounds_error": 0,
+            "rounds_skipped_stale": 62,
+        },
+    ]
+    _write_jsonl(coverage_dir / "runner=longjob" / "date=2026-01-01" / "heartbeat.jsonl", heartbeats)
+
+    return {"raw_dir": raw_dir, "coverage_dir": coverage_dir, "rejected_dir": rejected_dir}
+
+
+def test_build_summary_defaults_to_latest_job_id(tmp_path):
+    """K-34/K-35 rapor bulgusu: filtre verilmezse en son job_start'a
+    sahip job_id'ye izole olunur -- eski koşum sessizce karismaz."""
+    dirs = _setup_two_job_fixtures(tmp_path)
+    summary = build_summary(raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"])
+
+    assert summary["scope"] == {"job_id": "job-new", "since_ms": None}
+    assert summary["rounds_seen"] == 2
+    assert summary["round_status_counts"] == {"complete": 1, "partial": 1}
+    assert set(summary["metrics_by_job_id"].keys()) == {"job-new"}
+    assert summary["round_counters_by_job_id"] == {
+        "job-new": {"rounds_seen": 2, "rounds_missed": 0, "rounds_error": 0, "rounds_skipped_stale": 62}
+    }
+
+
+def test_build_summary_job_id_filter_isolates_older_run(tmp_path):
+    dirs = _setup_two_job_fixtures(tmp_path)
+    summary = build_summary(
+        raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], job_id="job-old"
+    )
+
+    assert summary["scope"] == {"job_id": "job-old", "since_ms": None}
+    assert summary["rounds_seen"] == 1
+    assert summary["round_status_counts"] == {"complete": 1}
+    assert set(summary["metrics_by_job_id"].keys()) == {"job-old"}
+
+
+def test_build_summary_since_filter_pools_multiple_jobs_with_breakdown(tmp_path):
+    """--since ikisini de kapsayan bir esik verirse toplam havuzlanir
+    ama metrics_by_job_id her koşumu ayri gosterir."""
+    dirs = _setup_two_job_fixtures(tmp_path)
+    summary = build_summary(
+        raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], since_ms=0
+    )
+
+    assert summary["scope"] == {"job_id": None, "since_ms": 0}
+    assert summary["rounds_seen"] == 3  # havuzlanmis: iki job'un toplami
+    assert set(summary["metrics_by_job_id"].keys()) == {"job-old", "job-new"}
+    assert summary["metrics_by_job_id"]["job-old"]["rounds_seen"] == 1
+    assert summary["metrics_by_job_id"]["job-new"]["rounds_seen"] == 2
+
+
+def test_build_summary_since_filter_excludes_older_job(tmp_path):
+    dirs = _setup_two_job_fixtures(tmp_path)
+    summary = build_summary(
+        raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], since_ms=1000
+    )
+
+    assert summary["rounds_seen"] == 2
+    assert set(summary["metrics_by_job_id"].keys()) == {"job-new"}
+
+
+def test_complete_timing_valid_counts_flags_backlog_rounds_as_false(tmp_path):
+    """K-35: status='complete' olsa bile backlog'dan gelen turlar
+    timing_valid=False -- rapor bunu ayri gosterir, gizlemez."""
+    dirs = _setup_two_job_fixtures(tmp_path)
+    summary = build_summary(
+        raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], job_id="job-new"
+    )
+    assert summary["complete_timing_valid_counts"] == {"False": 1}
+
+
+def test_complete_timing_valid_counts_true_for_on_time_round(tmp_path):
+    dirs = _setup_two_job_fixtures(tmp_path)
+    summary = build_summary(
+        raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], job_id="job-old"
+    )
+    assert summary["complete_timing_valid_counts"] == {"True": 1}
+
+
+def test_main_writes_job_id_filtered_summary(tmp_path):
+    dirs = _setup_two_job_fixtures(tmp_path)
+    out_dir = tmp_path / "out"
+
+    main(
+        [
+            "--raw-dir",
+            str(dirs["raw_dir"]),
+            "--coverage-dir",
+            str(dirs["coverage_dir"]),
+            "--rejected-dir",
+            str(dirs["rejected_dir"]),
+            "--out-dir",
+            str(out_dir),
+            "--job-id",
+            "job-old",
+        ]
+    )
+
+    run_dirs = list(out_dir.iterdir())
+    parsed = json.loads((run_dirs[0] / "summary.json").read_text(encoding="utf-8"))
+    assert parsed["scope"]["job_id"] == "job-old"
+    assert parsed["rounds_seen"] == 1
+
+
+def test_main_since_arg_parses_iso8601_utc(tmp_path):
+    dirs = _setup_two_job_fixtures(tmp_path)
+    out_dir = tmp_path / "out"
+
+    main(
+        [
+            "--raw-dir",
+            str(dirs["raw_dir"]),
+            "--coverage-dir",
+            str(dirs["coverage_dir"]),
+            "--rejected-dir",
+            str(dirs["rejected_dir"]),
+            "--out-dir",
+            str(out_dir),
+            "--since",
+            "1970-01-01T00:00:01Z",  # epoch ms 1000 -- job-old'u disarida birakir
+        ]
+    )
+
+    run_dirs = list(out_dir.iterdir())
+    parsed = json.loads((run_dirs[0] / "summary.json").read_text(encoding="utf-8"))
+    assert parsed["scope"]["since_ms"] == 1000
+    assert parsed["rounds_seen"] == 2

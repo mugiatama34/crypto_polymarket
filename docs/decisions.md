@@ -903,3 +903,63 @@ var mı" sorusuna toplu bir cevap verir, ama ham çerçeve kaydı olmadan
 **Sonuç:** CLOB WS defterinin neden dolmadığı açık bir teşhis işi.
 Bayrak (K-32) tekrar açılmadan önce bu ölçülmeli — aksi halde aynı
 %100 boş defter tekrarlanır.
+
+---
+
+## K-34 — restart sonrası backlog işlenmez
+
+2026-09-09 koşumunda longjob bir kez sessizce çöktü (`job_end` hiç
+yazılmadan süreç kesildi), `state/longjob.json` son işlenen turda
+kaldı. Bir sonraki job başlarken bu state'ten devam etti — ama
+başlangıç zamanı ile state'teki noktanın arası ~5 saat 55 dakikaydı.
+`next_round_start_epoch_s` state'ten sonraki turu hedefledi,
+`_sleep_with_heartbeat` de hedef zaman zaten geçmişse hiç beklemediği
+için runner ~62 tur (saatler önce kapanmış marketler) art arda
+saniyeler içinde işledi.
+
+Bunun zararı iki katlı: (1) `offset_actual_sec` sapması fiziksel
+olarak anlamsız değerlere ulaştı (medyan −5292 sn, min −19251 sn) —
+hesap doğruydu, veri gerçekten o kadar geç örneklenmişti; (2) daha
+kötüsü, kapanmış marketin CLOB defter ucu (`/book`) 404 döndürdüğü
+için bu turların REST çağrıları biraz şansa bağlı olarak bazen yine de
+tamamı başarılı dönebiliyordu (referans fiyat ucu round'dan bağımsız
+çalışmaya devam ediyor) — böyle bir turun `status` alanı "complete"
+yazılabiliyordu, yani saatler geç örneklenmiş ölü bir tur canlı
+gözükebiliyordu (bkz. K-35).
+
+**Sonuç:** `LongjobRunner.run()` state'ten devam ederken hedef turun
+"şimdi"ye göre ne kadar geride olduğunu kontrol eder
+(`STALE_BACKLOG_ROUNDS = 2` tur). Bu eşiğin üzerindeyse backlog hiç
+işlenmez — runner doğrudan güncel tur sınırından
+(`next_round_start_epoch_s(now)`) başlar. Atlanan tur sayısı sessizce
+kaybolmaz: `heartbeat.error` ile anında, `job_end`'deki yeni
+`rounds_skipped_stale` sayacıyla toplu olarak kaydedilir (K-06).
+`rounds_missed`/`rounds_error`den ayrı tutulur çünkü ne kesif sorunu
+ne kod hatası — zamanlama kararı.
+
+---
+
+## K-35 — `status` ile `timing_valid` ayrı kavramlar
+
+K-34'ün ikinci bulgusu: round kaydındaki `status` alanı yalnızca
+gözlemlerin REST/WS çağrılarının başarılı olup olmadığını yakalıyor,
+*ne zaman* örneklendiğini yakalamıyor. 2026-09-09 koşumunda 20
+"complete" turdan 2'si aslında backlog patlaması içinde, kapanıştan
+~17-18 bin saniye sonra örneklenmişti — CLOB defter çağrıları o anda
+şans eseri 200 döndüğü için `status: "complete"` yazılmıştı.
+
+Bu, `status`'un tek başına "bu tur ölçüm için kullanılabilir mi"
+sorusuna cevap vermediği anlamına gelir. Tek alanda toplanınca ölü
+(geç örneklenmiş) veri canlı görünüyor; bu B stratejisi/metrik
+katmanına sızarsa geriye dönük ayıklanamaz (ham veri değiştirilmez,
+CLAUDE.md kural 1).
+
+**Sonuç:** round kaydına yeni, zorunlu bir alan eklendi: `timing_valid`
+(bool). Turun `observations[]`'ındaki tüm `offset_actual_sec` değerleri
+ilgili `offset_sec`'ten `TIMING_VALID_TOLERANCE_SEC` (30 sn) içindeyse
+`True`, değilse `False` (`collector/round_calendar.is_timing_valid`).
+`status` = çağrılar başarılı mı, `timing_valid` = zamanında mı
+örneklendi — ikisi birbirinden bağımsız, ikisi de ayrı ayrı okunmalı.
+`shakedown_report`, "complete" turları `timing_valid` kırılımıyla da
+gösterir ki bu iki bulgu (K-34 örneğindeki gibi) rapor seviyesinde
+gizlenmesin.

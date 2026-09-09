@@ -48,6 +48,7 @@ def _wrap_round(observation):
         "observations": [observation],
         "decision": None,
         "status": "partial",
+        "timing_valid": True,
         "raw": [],
     }
 

@@ -65,6 +65,7 @@ class HeartbeatWriter:
         rounds_seen: int,
         rounds_missed: int,
         rounds_error: int,
+        rounds_skipped_stale: int,
         discovery_slug_hits: int,
         discovery_listing_hits: int,
         rtds_dropped_not_json: int,
@@ -85,6 +86,11 @@ class HeartbeatWriter:
         icin. Ayri tutulur cunku ikisi farkli duzeltme gerektirir (kesif
         sorunu vs. kod bug'i); tek sayacta toplansa ayirt edilemezdi.
 
+        `rounds_skipped_stale`: restart sonrasi state'ten devam edilirken
+        backlog cok geride kalmissa (K-34) hic islenmeden atlanan tur
+        sayisi -- `rounds_missed`/`rounds_error`den AYRI, cunku market
+        bulunamamasi veya kod hatasi degil, zamanlama karari.
+
         `rtds_dropped_*`/`clob_ws_dropped_*`: `RTDSClient`/
         `ClobMarketWSClient`'in `_handle_message`'da sessizce dusurdugu
         cerceve sayaclari (K-25 -- tam duzeltme, ham cerceve kaydi, hala
@@ -97,6 +103,7 @@ class HeartbeatWriter:
             detail=detail,
             extra_fields={
                 "rounds_error": rounds_error,
+                "rounds_skipped_stale": rounds_skipped_stale,
                 "discovery_slug_hits": discovery_slug_hits,
                 "discovery_listing_hits": discovery_listing_hits,
                 "rtds_dropped_not_json": rtds_dropped_not_json,

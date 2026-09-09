@@ -169,6 +169,8 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
     assert len(round1["observations"]) == 24  # ws_leg_enabled=True: 12 offset * 2 transport
     assert round1["status"] in ("complete", "partial")
     assert round1["decision"] is None
+    # K-35: FakeClock hedefe tam zamaninda sicradigi icin sapma 0 -- tolerans icinde.
+    assert round1["timing_valid"] is True
 
     heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
     heartbeat_files = list(heartbeat_dir.rglob("heartbeat.jsonl"))
@@ -232,6 +234,58 @@ async def test_run_resumes_from_saved_state(tmp_path):
         await runner.run()
 
     assert requested_slugs[0] == f"btc-updown-5m-{ALIGNED_EPOCH_S + 300}"
+
+
+@pytest.mark.asyncio
+async def test_run_skips_stale_backlog_and_jumps_to_current_round(tmp_path):
+    """K-34: state 2 turdan cok geride kalmissa (burada ~10 tur, 3000sn)
+    backlog hic islenmez -- runner dogrudan guncel tur sinirindan baslar,
+    atlanan tur sayisi heartbeat error'unda ve job_end sayacinda gorunur."""
+    from collector.state import LongjobState, save_state
+
+    repo_dir = _init_repo(tmp_path)
+    state_path = repo_dir / "state" / "longjob.json"
+    save_state(LongjobState(last_processed_round_epoch_s=ALIGNED_EPOCH_S), state_path)
+
+    requested_slugs = []
+    transport = _make_http_client(requested_slugs)
+
+    rtds = FakeSimpleWSClient({})
+    clob_ws = FakeClobWSClient({})
+    # state'teki noktadan ~1 saat (12 tur) sonrasi -- 2 tur esiginin cok uzerinde.
+    now_epoch_s = ALIGNED_EPOCH_S + 3600
+    clock = FakeClock(start_ms=(now_epoch_s - 10) * 1000)
+
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        runner = LongjobRunner(
+            http_client=http_client,
+            rtds_client=rtds,
+            clob_ws_client=clob_ws,
+            clock=clock,
+            state_path=state_path,
+            raw_base_dir=repo_dir / "data" / "raw",
+            coverage_base_dir=repo_dir / "data" / "coverage",
+            rejected_base_dir=repo_dir / "data" / "rejected",
+            repo_dir=repo_dir,
+            job_duration_sec=350,
+            shutdown_margin_sec=60,
+            commit_interval_sec=200,
+        )
+        await runner.run()
+
+    # backlog'daki eski round (ALIGNED_EPOCH_S+300) hic istenmedi -- dogrudan guncel tura atlandi.
+    assert requested_slugs[0] == f"btc-updown-5m-{now_epoch_s}"
+    assert runner.rounds_skipped_stale == 10
+
+    heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
+    heartbeat_lines = [
+        json.loads(line)
+        for line in list(heartbeat_dir.rglob("heartbeat.jsonl"))[0].read_text(encoding="utf-8").splitlines()
+    ]
+    skip_errors = [h["detail"] for h in heartbeat_lines if h["event"] == "error" and "backlog atlandi" in (h["detail"] or "")]
+    assert len(skip_errors) == 1
+    assert heartbeat_lines[-1]["event"] == "job_end"
+    assert heartbeat_lines[-1]["rounds_skipped_stale"] == 10
 
 
 @pytest.mark.asyncio

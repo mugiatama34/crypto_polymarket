@@ -57,6 +57,7 @@ def _job_end_kwargs(**overrides):
         rounds_seen=0,
         rounds_missed=0,
         rounds_error=0,
+        rounds_skipped_stale=0,
         discovery_slug_hits=0,
         discovery_listing_hits=0,
         rtds_dropped_not_json=0,
@@ -145,6 +146,17 @@ def test_job_end_writes_rounds_error_counter(tmp_path):
     assert record["rounds_error"] == 3
 
 
+def test_job_end_writes_rounds_skipped_stale_counter(tmp_path):
+    """K-34: restart sonrasi state cok geride kalmissa atlanan tur sayisi
+    ayri, sessiz olmayan bir sayacta gorunur."""
+    now = _clock([1000, 2000])
+    hb = HeartbeatWriter(runner_id="longjob", job_id="job-1", now_ms_fn=now, base_dir=tmp_path)
+    hb.job_start()
+    path = hb.job_end(**_job_end_kwargs(rounds_seen=4, rounds_skipped_stale=62))
+    record = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+    assert record["rounds_skipped_stale"] == 62
+
+
 def test_non_job_end_events_do_not_include_discovery_keys(tmp_path):
     now = _clock([1000, 2000, 3000])
     hb = HeartbeatWriter(runner_id="longjob", job_id="job-1", now_ms_fn=now, base_dir=tmp_path)
@@ -158,6 +170,7 @@ def test_non_job_end_events_do_not_include_discovery_keys(tmp_path):
         assert "discovery_slug_hits" not in record
         assert "discovery_listing_hits" not in record
         assert "rounds_error" not in record
+        assert "rounds_skipped_stale" not in record
         assert "rtds_dropped_not_json" not in record
         assert "rtds_dropped_unknown_symbol" not in record
         assert "rtds_dropped_unknown_shape" not in record
