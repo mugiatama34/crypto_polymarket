@@ -1,0 +1,101 @@
+{
+  "name": "shape_a1_action_field",
+  "url": "wss://ws-live-data.polymarket.com",
+  "connected": true,
+  "handshake": {
+    "status_code": 101,
+    "status_code_source": "inferred_from_successful_connect",
+    "response_headers": [
+      [
+        "Date",
+        "Wed, 09 Sep 2026 07:48:08 GMT"
+      ],
+      [
+        "Connection",
+        "upgrade"
+      ],
+      [
+        "upgrade",
+        "websocket"
+      ],
+      [
+        "sec-websocket-accept",
+        "LU5FXZS3QSpQv20gSXFNAB+2wKc="
+      ],
+      [
+        "sec-websocket-extensions",
+        "permessage-deflate"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=7776000; includeSubDomains"
+      ],
+      [
+        "Speculation-Rules",
+        "\"/cdn-cgi/speculation\""
+      ],
+      [
+        "set-cookie",
+        "__cf_bm=IY8V_.jo1oVGbh.HOxCGoGEdGBXKXj7Eg3nKuQaElAs-1788940088.0717146-1.0.1.1-YOnEJN.SalqvpU5hTJ.SjAbqViGUk36_DiOAkVb96kgj_XUTX6Et9.3MpchQEaSJpobW18sYk7t1YSNv69wtrO2DdLgsiObdc8Fn57l6pWNHojmqzyOJ8qwyvNTCe0dR; HttpOnly; SameSite=None; Secure; Path=/; Domain=polymarket.com; Expires=Wed, 09 Sep 2026 08:18:08 GMT"
+      ],
+      [
+        "Server-Timing",
+        "cfCacheStatus;desc=\"DYNAMIC\""
+      ],
+      [
+        "Server-Timing",
+        "cfEdge;dur=20,cfOrigin;dur=307"
+      ],
+      [
+        "Server",
+        "cloudflare"
+      ],
+      [
+        "CF-RAY",
+        "a38496be6f1ee892-MSP"
+      ]
+    ],
+    "subprotocol": null
+  },
+  "cf_signals": {
+    "cf_bm_cookie_present": true,
+    "cf_ray": "a38496be6f1ee892-MSP"
+  },
+  "origin_header_sent": null,
+  "user_agent_header_sent": null,
+  "subscribe_message_sent": "{\"action\": \"subscribe\", \"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}]}",
+  "listen_seconds": 20.0,
+  "app_pings_sent": false,
+  "event_count": 3,
+  "frame_received_count": 2,
+  "protocol_frame_received_count": 0,
+  "protocol_frame_sent_count": 0,
+  "events": [
+    {
+      "kind": "subscription_sent",
+      "wall_clock_utc": "2026-09-09T07:48:08.406603+00:00",
+      "elapsed_sec": 0.408,
+      "message": "{\"action\": \"subscribe\", \"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}]}"
+    },
+    {
+      "kind": "frame_received",
+      "wall_clock_utc": "2026-09-09T07:48:08.530296+00:00",
+      "elapsed_sec": 0.532,
+      "raw": ""
+    },
+    {
+      "kind": "frame_received",
+      "wall_clock_utc": "2026-09-09T07:48:08.572110+00:00",
+      "elapsed_sec": 0.574,
+      "raw": "{\"payload\":{\"data\":[{\"timestamp\":1788939969000,\"value\":79198},{\"timestamp\":1788939970000,\"value\":79198},{\"timestamp\":1788939971000,\"value\":79207.99},{\"timestamp\":1788939972000,\"value\":79219.75},{\"timestamp\":1788939973000,\"value\":79219.74},{\"timestamp\":1788939974000,\"value\":79219.74},{\"timestamp\":1788939975000,\"value\":79229.44},{\"timestamp\":1788939976000,\"value\":79229.44},{\"timestamp\":1788939977000,\"value\":79229.43},{\"timestamp\":1788939978000,\"value\":79233.99},{\"timestamp\":1788939979000,\"value\":79237.99},{\"timestamp\":1788939980000,\"value\":79237.99},{\"timestamp\":1788939981000,\"value\":79237.99},{\"timestamp\":1788939982000,\"value\":79237.99},{\"timestamp\":1788939983000,\"value\":79237.99},{\"timestamp\":1788939984000,\"value\":79238},{\"timestamp\":1788939985000,\"value\":79237.99},{\"timestamp\":1788939986000,\"value\":79237.99},{\"timestamp\":1788939987000,\"value\":79237.99},{\"timestamp\":1788939988000,\"value\":79237.99},{\"timestamp\":1788939989000,\"value\":79237.99},{\"timestamp\":1788939990000,\"value\":79237.99},{\"timestamp\":1788939991000,\"value\":79245.18},{\"timestamp\":1788939992000,\"value\":79245.22},{\"timestamp\":1788939993000,\"value\":79245.21},{\"timestamp\":1788939994000,\"value\":79245.21},{\"timestamp\":1788939995000,\"value\":79245.21},{\"timestamp\":1788939996000,\"value\":79245.21},{\"timestamp\":1788939997000,\"value\":79245.22},{\"timestamp\":1788939998000,\"value\":79245.21},{\"timestamp\":1788939999000,\"value\":79247.7},{\"timestamp\":1788940000000,\"value\":79247.99},{\"timestamp\":1788940001000,\"value\":79252},{\"timestamp\":1788940002000,\"value\":79252},{\"timestamp\":1788940003000,\"value\":79253.85},{\"timestamp\":1788940004000,\"value\":79253.98},{\"timestamp\":1788940005000,\"value\":79253.99},{\"timestamp\":1788940006000,\"value\":79254},{\"timestamp\":1788940007000,\"value\":79254},{\"timestamp\":1788940008000,\"value\":79253.99},{\"timestamp\":1788940009000,\"value\":79253.99},{\"timestamp\":1788940010000,\"value\":79253.99},{\"timestamp\":1788940011000,\"value\":79254},{\"timestamp\":1788940012000,\"value\":79253.99},{\"timestamp\":1788940013000,\"value\":79253.99},{\"timestamp\":1788940014000,\"value\":79253.99},{\"timestamp\":1788940015000,\"value\":79253.99},{\"timestamp\":1788940016000,\"value\":79253.99},{\"timestamp\":1788940017000,\"value\":79254},{\"timestamp\":1788940018000,\"value\":79253.78},{\"timestamp\":1788940019000,\"value\":79253.78},{\"timestamp\":1788940020000,\"value\":79253.78},{\"timestamp\":1788940021000,\"value\":79253.77},{\"timestamp\":1788940022000,\"value\":79253.78},{\"timestamp\":1788940023000,\"value\":79253.77},{\"timestamp\":1788940024000,\"value\":79253.77},{\"timestamp\":1788940025000,\"value\":79253.77},{\"timestamp\":1788940026000,\"value\":79246.01},{\"timestamp\":1788940027000,\"value\":79227.78},{\"timestamp\":1788940028000,\"value\":79220.08},{\"timestamp\":1788940029000,\"value\":79220.08},{\"timestamp\":1788940030000,\"value\":79220.08},{\"timestamp\":1788940031000,\"value\":79222.22},{\"timestamp\":1788940032000,\"value\":79222.23},{\"timestamp\":1788940033000,\"value\":79224},{\"timestamp\":1788940034000,\"value\":79224},{\"timestamp\":1788940035000,\"value\":79223.99},{\"timestamp\":1788940036000,\"value\":79223.99},{\"timestamp\":1788940037000,\"value\":79223.99},{\"timestamp\":1788940038000,\"value\":79229.99},{\"timestamp\":1788940039000,\"value\":79229.98},{\"timestamp\":1788940040000,\"value\":79243.99},{\"timestamp\":1788940041000,\"value\":79244},{\"timestamp\":1788940042000,\"value\":79244},{\"timestamp\":1788940043000,\"value\":79244},{\"timestamp\":1788940044000,\"value\":79243.99},{\"timestamp\":1788940045000,\"value\":79243.99},{\"timestamp\":1788940046000,\"value\":79243.99},{\"timestamp\":1788940047000,\"value\":79243.99},{\"timestamp\":1788940048000,\"value\":79244},{\"timestamp\":1788940049000,\"value\":79243.99},{\"timestamp\":1788940050000,\"value\":79242.73},{\"timestamp\":1788940051000,\"value\":79242.73},{\"timestamp\":1788940052000,\"value\":79242.73},{\"timestamp\":1788940053000,\"value\":79242.73},{\"timestamp\":1788940054000,\"value\":79242.64},{\"timestamp\":1788940055000,\"value\":79242.64},{\"timestamp\":1788940056000,\"value\":79242.57},{\"timestamp\":1788940057000,\"value\":79232.17},{\"timestamp\":1788940058000,\"value\":79232},{\"timestamp\":1788940059000,\"value\":79232.01},{\"timestamp\":1788940060000,\"value\":79232},{\"timestamp\":1788940061000,\"value\":79232},{\"timestamp\":1788940062000,\"value\":79232},{\"timestamp\":1788940063000,\"value\":79224.56},{\"timestamp\":1788940064000,\"value\":79224.55},{\"timestamp\":1788940065000,\"value\":79224.55},{\"timestamp\":1788940066000,\"value\":79224.56},{\"timestamp\":1788940067000,\"value\":79224.55},{\"timestamp\":1788940068000,\"value\":79224.48},{\"timestamp\":1788940069000,\"value\":79224},{\"timestamp\":1788940070000,\"value\":79224},{\"timestamp\":1788940071000,\"value\":79224},{\"timestamp\":1788940072000,\"value\":79218.3},{\"timestamp\":1788940073000,\"value\":79218.3},{\"timestamp\":1788940074000,\"value\":79218.3},{\"timestamp\":1788940075000,\"value\":79218.3},{\"timestamp\":1788940076000,\"value\":79218.31},{\"timestamp\":1788940077000,\"value\":79218.3},{\"timestamp\":1788940078000,\"value\":79218.31},{\"timestamp\":1788940079000,\"value\":79218.31},{\"timestamp\":1788940080000,\"value\":79218.3},{\"timestamp\":1788940081000,\"value\":79218.3},{\"timestamp\":1788940082000,\"value\":79218.3},{\"timestamp\":1788940083000,\"value\":79218.3},{\"timestamp\":1788940084000,\"value\":79218.3},{\"timestamp\":1788940085000,\"value\":79218.3},{\"timestamp\":1788940086000,\"value\":79218.3},{\"timestamp\":1788940087000,\"value\":79218.31},{\"timestamp\":1788940088000,\"value\":79218.3}],\"symbol\":\"btcusdt\"},\"timestamp\":1788940088475,\"topic\":\"crypto_prices\",\"type\":\"subscribe\"}"
+    }
+  ],
+  "close_code": 1000,
+  "close_reason": "",
+  "error": null,
+  "captured_at_utc": "2026-09-09T07:48:28.527107+00:00"
+}

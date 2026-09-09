@@ -1,0 +1,89 @@
+{
+  "name": "shape_a3_single_object",
+  "url": "wss://ws-live-data.polymarket.com",
+  "connected": true,
+  "handshake": {
+    "status_code": 101,
+    "status_code_source": "inferred_from_successful_connect",
+    "response_headers": [
+      [
+        "Date",
+        "Wed, 09 Sep 2026 07:48:49 GMT"
+      ],
+      [
+        "Connection",
+        "upgrade"
+      ],
+      [
+        "upgrade",
+        "websocket"
+      ],
+      [
+        "sec-websocket-accept",
+        "LSpxFW8BbfSEFK0TEIZVAtBlW8I="
+      ],
+      [
+        "sec-websocket-extensions",
+        "permessage-deflate"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=7776000; includeSubDomains"
+      ],
+      [
+        "Speculation-Rules",
+        "\"/cdn-cgi/speculation\""
+      ],
+      [
+        "set-cookie",
+        "__cf_bm=vrHZpyj3up6DtR5DKy0ds5ap39FU.2tBqhSafyj1uMM-1788940129.075441-1.0.1.1-dTIKA_KrvOg9k9j4_Ivx_4eGmCVr.BkE3Rn1kVvI70uiDCxhi.271lG.ypB7zCNXlcaI3r16Y0hSIz2urZMm9O7Tw.wshltDjeQ3dC7A33qjbTkBnOEC_GYXkAsxBvfI; HttpOnly; SameSite=None; Secure; Path=/; Domain=polymarket.com; Expires=Wed, 09 Sep 2026 08:18:49 GMT"
+      ],
+      [
+        "Server-Timing",
+        "cfCacheStatus;desc=\"DYNAMIC\""
+      ],
+      [
+        "Server-Timing",
+        "cfEdge;dur=9,cfOrigin;dur=346"
+      ],
+      [
+        "Server",
+        "cloudflare"
+      ],
+      [
+        "CF-RAY",
+        "a38497bebe48a200-MSP"
+      ]
+    ],
+    "subprotocol": null
+  },
+  "cf_signals": {
+    "cf_bm_cookie_present": true,
+    "cf_ray": "a38497bebe48a200-MSP"
+  },
+  "origin_header_sent": null,
+  "user_agent_header_sent": null,
+  "subscribe_message_sent": "{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}",
+  "listen_seconds": 20.0,
+  "app_pings_sent": false,
+  "event_count": 1,
+  "frame_received_count": 0,
+  "protocol_frame_received_count": 0,
+  "protocol_frame_sent_count": 0,
+  "events": [
+    {
+      "kind": "subscription_sent",
+      "wall_clock_utc": "2026-09-09T07:48:49.437215+00:00",
+      "elapsed_sec": 0.404,
+      "message": "{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}"
+    }
+  ],
+  "close_code": 1000,
+  "close_reason": "",
+  "error": null,
+  "captured_at_utc": "2026-09-09T07:49:09.571769+00:00"
+}

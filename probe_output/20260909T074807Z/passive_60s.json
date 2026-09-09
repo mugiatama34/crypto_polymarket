@@ -1,0 +1,82 @@
+{
+  "name": "passive_60s",
+  "url": "wss://ws-live-data.polymarket.com",
+  "connected": true,
+  "handshake": {
+    "status_code": 101,
+    "status_code_source": "inferred_from_successful_connect",
+    "response_headers": [
+      [
+        "Date",
+        "Wed, 09 Sep 2026 07:50:31 GMT"
+      ],
+      [
+        "Connection",
+        "upgrade"
+      ],
+      [
+        "upgrade",
+        "websocket"
+      ],
+      [
+        "sec-websocket-accept",
+        "phKSEMn/vv6L1ia7jB4kQhnMUMw="
+      ],
+      [
+        "sec-websocket-extensions",
+        "permessage-deflate"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=7776000; includeSubDomains"
+      ],
+      [
+        "Speculation-Rules",
+        "\"/cdn-cgi/speculation\""
+      ],
+      [
+        "set-cookie",
+        "__cf_bm=0QTFn5y1yLYbZJSTp1DBFRhZrk3vdpZQLVrvDqcSbOk-1788940231.1467028-1.0.1.1-GvIgPqMSiHh9JABUdzyXB_vK7DerNSUsgQxebZDu_Cu7mszYtRbeSDCo.ul9G.k.SpJ5GDntJnVoXzf4dClo5w1Qx30Sg68Hv964bYnlVhGT5y4zCWfUY77ulqWwsIqI; HttpOnly; SameSite=None; Secure; Path=/; Domain=polymarket.com; Expires=Wed, 09 Sep 2026 08:20:31 GMT"
+      ],
+      [
+        "Server-Timing",
+        "cfCacheStatus;desc=\"DYNAMIC\""
+      ],
+      [
+        "Server-Timing",
+        "cfEdge;dur=21,cfOrigin;dur=340"
+      ],
+      [
+        "Server",
+        "cloudflare"
+      ],
+      [
+        "CF-RAY",
+        "a3849a3ca89883b0-MSP"
+      ]
+    ],
+    "subprotocol": null
+  },
+  "cf_signals": {
+    "cf_bm_cookie_present": true,
+    "cf_ray": "a3849a3ca89883b0-MSP"
+  },
+  "origin_header_sent": null,
+  "user_agent_header_sent": null,
+  "subscribe_message_sent": null,
+  "listen_seconds": 60.0,
+  "app_pings_sent": false,
+  "event_count": 0,
+  "frame_received_count": 0,
+  "protocol_frame_received_count": 0,
+  "protocol_frame_sent_count": 0,
+  "events": [],
+  "close_code": 1000,
+  "close_reason": "",
+  "error": null,
+  "captured_at_utc": "2026-09-09T07:51:31.689189+00:00"
+}

@@ -1,0 +1,119 @@
+{
+  "name": "headers_none",
+  "url": "wss://ws-live-data.polymarket.com",
+  "connected": true,
+  "handshake": {
+    "status_code": 101,
+    "status_code_source": "inferred_from_successful_connect",
+    "response_headers": [
+      [
+        "Date",
+        "Wed, 09 Sep 2026 07:50:00 GMT"
+      ],
+      [
+        "Connection",
+        "upgrade"
+      ],
+      [
+        "upgrade",
+        "websocket"
+      ],
+      [
+        "sec-websocket-accept",
+        "Y24Ck1Ab5JGJTch0tIr58wV4ILE="
+      ],
+      [
+        "sec-websocket-extensions",
+        "permessage-deflate"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=7776000; includeSubDomains"
+      ],
+      [
+        "Speculation-Rules",
+        "\"/cdn-cgi/speculation\""
+      ],
+      [
+        "set-cookie",
+        "__cf_bm=B8O3jMwJH8Ybwx_DifQBODZOu9A8dTXEXOPXUwyb.24-1788940200.6602-1.0.1.1-LUYv1uNK2x.65pNUBg0.LULm1huTEzoHrykuPAQsDe4EnG2d94c4_gAFkIWwx4Z_SiC2CpE1Lz4AHdYqhijFxo2SMnmtHoBKN5HRm52KD0mxHjie.ImFlmfSqNAP7p_d; HttpOnly; SameSite=None; Secure; Path=/; Domain=polymarket.com; Expires=Wed, 09 Sep 2026 08:20:00 GMT"
+      ],
+      [
+        "Server-Timing",
+        "cfCacheStatus;desc=\"DYNAMIC\""
+      ],
+      [
+        "Server-Timing",
+        "cfEdge;dur=25,cfOrigin;dur=308"
+      ],
+      [
+        "Server",
+        "cloudflare"
+      ],
+      [
+        "CF-RAY",
+        "a384997e1efe393c-MSP"
+      ]
+    ],
+    "subprotocol": null
+  },
+  "cf_signals": {
+    "cf_bm_cookie_present": true,
+    "cf_ray": "a384997e1efe393c-MSP"
+  },
+  "origin_header_sent": null,
+  "user_agent_header_sent": null,
+  "subscribe_message_sent": "{\"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}]}",
+  "listen_seconds": 30.0,
+  "app_pings_sent": true,
+  "event_count": 6,
+  "frame_received_count": 0,
+  "protocol_frame_received_count": 0,
+  "protocol_frame_sent_count": 0,
+  "events": [
+    {
+      "kind": "subscription_sent",
+      "wall_clock_utc": "2026-09-09T07:50:01.000072+00:00",
+      "elapsed_sec": 0.379,
+      "message": "{\"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}]}"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:50:06.005633+00:00",
+      "elapsed_sec": 5.385,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:50:11.011138+00:00",
+      "elapsed_sec": 10.39,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:50:16.016638+00:00",
+      "elapsed_sec": 15.396,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:50:21.017473+00:00",
+      "elapsed_sec": 20.397,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:50:26.023694+00:00",
+      "elapsed_sec": 25.403,
+      "message": "PING"
+    }
+  ],
+  "close_code": 1000,
+  "close_reason": "",
+  "error": null,
+  "captured_at_utc": "2026-09-09T07:50:31.109366+00:00"
+}

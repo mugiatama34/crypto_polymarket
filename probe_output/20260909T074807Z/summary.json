@@ -1,0 +1,111 @@
+{
+  "run_dir": "probe_output/20260909T074807Z",
+  "generated_at_utc": "2026-09-09T07:56:32.206649+00:00",
+  "ping_interval_sec_used_for_app_pings": 5.0,
+  "probes": [
+    {
+      "name": "shape_a1_action_field",
+      "connected": true,
+      "frame_received_count": 2,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a38496be6f1ee892-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "shape_a2_current",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a384973e9dba4c9e-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "shape_a3_single_object",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a38497bebe48a200-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "shape_a4_singular_key",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a384983f0e77accf-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "headers_with_origin_ua",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a38498bf2ef8b32d-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "headers_none",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a384997e1efe393c-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "passive_60s",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a3849a3ca89883b0-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    },
+    {
+      "name": "lifetime_5min",
+      "connected": true,
+      "frame_received_count": 0,
+      "protocol_frame_received_count": 0,
+      "cf_signals": {
+        "cf_bm_cookie_present": true,
+        "cf_ray": "a3849bb74a22a1c7-MSP"
+      },
+      "close_code": 1000,
+      "close_reason": "",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,443 @@
+{
+  "name": "lifetime_5min",
+  "url": "wss://ws-live-data.polymarket.com",
+  "connected": true,
+  "handshake": {
+    "status_code": 101,
+    "status_code_source": "inferred_from_successful_connect",
+    "response_headers": [
+      [
+        "Date",
+        "Wed, 09 Sep 2026 07:51:32 GMT"
+      ],
+      [
+        "Connection",
+        "upgrade"
+      ],
+      [
+        "upgrade",
+        "websocket"
+      ],
+      [
+        "sec-websocket-accept",
+        "QyejwM4TbbPxDsjUCQQUtXCY5dU="
+      ],
+      [
+        "sec-websocket-extensions",
+        "permessage-deflate"
+      ],
+      [
+        "cf-cache-status",
+        "DYNAMIC"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=7776000; includeSubDomains"
+      ],
+      [
+        "Speculation-Rules",
+        "\"/cdn-cgi/speculation\""
+      ],
+      [
+        "set-cookie",
+        "__cf_bm=VppCqSXp5n7eDd3iJgRkQu7M_BtorWYwuQUWE7jIm4o-1788940291.731555-1.0.1.1-2BqfirQwTrlY9lORNXS4deK2cnMkT_DhUy.0HpoZ6vLrNKOwbWFE0s_M985x1OTBRyG8NbpoGhHXZb9T3xyNhBORLwfzJw3HOZyT1YLuwiQy.jOuo_9It1v54oXbLFpv; HttpOnly; SameSite=None; Secure; Path=/; Domain=polymarket.com; Expires=Wed, 09 Sep 2026 08:21:32 GMT"
+      ],
+      [
+        "Server-Timing",
+        "cfCacheStatus;desc=\"DYNAMIC\""
+      ],
+      [
+        "Server-Timing",
+        "cfEdge;dur=21,cfOrigin;dur=332"
+      ],
+      [
+        "Server",
+        "cloudflare"
+      ],
+      [
+        "CF-RAY",
+        "a3849bb74a22a1c7-MSP"
+      ]
+    ],
+    "subprotocol": null
+  },
+  "cf_signals": {
+    "cf_bm_cookie_present": true,
+    "cf_ray": "a3849bb74a22a1c7-MSP"
+  },
+  "origin_header_sent": null,
+  "user_agent_header_sent": null,
+  "subscribe_message_sent": "{\"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}]}",
+  "listen_seconds": 300.0,
+  "app_pings_sent": true,
+  "event_count": 60,
+  "frame_received_count": 0,
+  "protocol_frame_received_count": 0,
+  "protocol_frame_sent_count": 0,
+  "events": [
+    {
+      "kind": "subscription_sent",
+      "wall_clock_utc": "2026-09-09T07:51:32.090993+00:00",
+      "elapsed_sec": 0.401,
+      "message": "{\"subscriptions\": [{\"topic\": \"crypto_prices\", \"type\": \"update\", \"filters\": \"{\\\"symbol\\\": \\\"btcusdt\\\"}\"}]}"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:51:37.096544+00:00",
+      "elapsed_sec": 5.407,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:51:42.102059+00:00",
+      "elapsed_sec": 10.413,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:51:47.107521+00:00",
+      "elapsed_sec": 15.418,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:51:52.108272+00:00",
+      "elapsed_sec": 20.419,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:51:57.113868+00:00",
+      "elapsed_sec": 25.424,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:02.119380+00:00",
+      "elapsed_sec": 30.43,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:07.124841+00:00",
+      "elapsed_sec": 35.435,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:12.130285+00:00",
+      "elapsed_sec": 40.441,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:17.135504+00:00",
+      "elapsed_sec": 45.446,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:22.140974+00:00",
+      "elapsed_sec": 50.451,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:27.146459+00:00",
+      "elapsed_sec": 55.457,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:32.151957+00:00",
+      "elapsed_sec": 60.462,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:37.158155+00:00",
+      "elapsed_sec": 65.469,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:42.163627+00:00",
+      "elapsed_sec": 70.474,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:47.169187+00:00",
+      "elapsed_sec": 75.48,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:52.174696+00:00",
+      "elapsed_sec": 80.485,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:52:57.179925+00:00",
+      "elapsed_sec": 85.49,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:02.185409+00:00",
+      "elapsed_sec": 90.496,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:07.190897+00:00",
+      "elapsed_sec": 95.501,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:12.196409+00:00",
+      "elapsed_sec": 100.507,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:17.202167+00:00",
+      "elapsed_sec": 105.513,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:22.207703+00:00",
+      "elapsed_sec": 110.518,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:27.210343+00:00",
+      "elapsed_sec": 115.521,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:32.215924+00:00",
+      "elapsed_sec": 120.526,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:37.218354+00:00",
+      "elapsed_sec": 125.529,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:42.223815+00:00",
+      "elapsed_sec": 130.534,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:47.229299+00:00",
+      "elapsed_sec": 135.54,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:52.234326+00:00",
+      "elapsed_sec": 140.545,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:53:57.239494+00:00",
+      "elapsed_sec": 145.55,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:02.244982+00:00",
+      "elapsed_sec": 150.555,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:07.250477+00:00",
+      "elapsed_sec": 155.561,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:12.255960+00:00",
+      "elapsed_sec": 160.566,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:17.261163+00:00",
+      "elapsed_sec": 165.572,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:22.266617+00:00",
+      "elapsed_sec": 170.577,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:27.272116+00:00",
+      "elapsed_sec": 175.583,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:32.277607+00:00",
+      "elapsed_sec": 180.588,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:37.284325+00:00",
+      "elapsed_sec": 185.595,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:42.289797+00:00",
+      "elapsed_sec": 190.6,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:47.295285+00:00",
+      "elapsed_sec": 195.606,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:52.300661+00:00",
+      "elapsed_sec": 200.611,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:54:57.307048+00:00",
+      "elapsed_sec": 205.618,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:02.310739+00:00",
+      "elapsed_sec": 210.621,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:07.316227+00:00",
+      "elapsed_sec": 215.627,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:12.321677+00:00",
+      "elapsed_sec": 220.632,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:17.326155+00:00",
+      "elapsed_sec": 225.637,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:22.331560+00:00",
+      "elapsed_sec": 230.642,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:27.337046+00:00",
+      "elapsed_sec": 235.648,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:32.342496+00:00",
+      "elapsed_sec": 240.653,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:37.348540+00:00",
+      "elapsed_sec": 245.659,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:42.353961+00:00",
+      "elapsed_sec": 250.664,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:47.359422+00:00",
+      "elapsed_sec": 255.67,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:52.362351+00:00",
+      "elapsed_sec": 260.673,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:55:57.367566+00:00",
+      "elapsed_sec": 265.678,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:56:02.373030+00:00",
+      "elapsed_sec": 270.684,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:56:07.378464+00:00",
+      "elapsed_sec": 275.689,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:56:12.379711+00:00",
+      "elapsed_sec": 280.69,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:56:17.384283+00:00",
+      "elapsed_sec": 285.695,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:56:22.389730+00:00",
+      "elapsed_sec": 290.7,
+      "message": "PING"
+    },
+    {
+      "kind": "ping_sent",
+      "wall_clock_utc": "2026-09-09T07:56:27.395196+00:00",
+      "elapsed_sec": 295.706,
+      "message": "PING"
+    }
+  ],
+  "close_code": 1000,
+  "close_reason": "",
+  "error": null,
+  "captured_at_utc": "2026-09-09T07:56:32.206131+00:00"
+}
