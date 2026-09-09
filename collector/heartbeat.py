@@ -64,32 +64,47 @@ class HeartbeatWriter:
         *,
         rounds_seen: int,
         rounds_missed: int,
+        rounds_error: int,
         discovery_slug_hits: int,
         discovery_listing_hits: int,
         rtds_dropped_not_json: int,
         rtds_dropped_unknown_symbol: int,
         rtds_dropped_unknown_shape: int,
+        clob_ws_dropped_not_json: int,
+        clob_ws_dropped_unknown_event_type: int,
+        clob_ws_dropped_unknown_shape: int,
         detail: Optional[str] = None,
     ) -> Path:
         """`discovery_slug_hits`/`discovery_listing_hits`: SCHEMA.md bolum 6,
         docs/decisions.md K-21 -- yalnizca `job_end`de bulunan opsiyonel
         alanlar, tek satirda toplu izlenebilirlik icin.
 
-        `rtds_dropped_*`: `RTDSClient`'in `_handle_message`'da sessizce
-        dusurdugu cerceve sayaclari (K-25 -- tam duzeltme, ham cerceve
-        kaydi, hala acik; bu sayaclar K-29 ile eklenen kismi gorunurluk).
-        Ayni desende, yalnizca `job_end`de bulunan opsiyonel alanlar."""
+        `rounds_error`: `rounds_missed`den AYRI sayac (K-32 PR'i) --
+        `rounds_missed` yalnizca market bulunamayan turlar icin,
+        `rounds_error` beklenmeyen bir istisna nedeniyle atlanan turlar
+        icin. Ayri tutulur cunku ikisi farkli duzeltme gerektirir (kesif
+        sorunu vs. kod bug'i); tek sayacta toplansa ayirt edilemezdi.
+
+        `rtds_dropped_*`/`clob_ws_dropped_*`: `RTDSClient`/
+        `ClobMarketWSClient`'in `_handle_message`'da sessizce dusurdugu
+        cerceve sayaclari (K-25 -- tam duzeltme, ham cerceve kaydi, hala
+        acik; bu sayaclar K-29/K-32 ile eklenen kismi gorunurluk). Ayni
+        desende, yalnizca `job_end`de bulunan opsiyonel alanlar."""
         return self._write(
             "job_end",
             rounds_seen=rounds_seen,
             rounds_missed=rounds_missed,
             detail=detail,
             extra_fields={
+                "rounds_error": rounds_error,
                 "discovery_slug_hits": discovery_slug_hits,
                 "discovery_listing_hits": discovery_listing_hits,
                 "rtds_dropped_not_json": rtds_dropped_not_json,
                 "rtds_dropped_unknown_symbol": rtds_dropped_unknown_symbol,
                 "rtds_dropped_unknown_shape": rtds_dropped_unknown_shape,
+                "clob_ws_dropped_not_json": clob_ws_dropped_not_json,
+                "clob_ws_dropped_unknown_event_type": clob_ws_dropped_unknown_event_type,
+                "clob_ws_dropped_unknown_shape": clob_ws_dropped_unknown_shape,
             },
         )
 

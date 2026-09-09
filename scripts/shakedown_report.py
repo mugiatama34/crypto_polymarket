@@ -22,6 +22,8 @@ kapsaminda degildir (bkz. gorev tanimi).
 
 import argparse
 import json
+import os
+import re
 import statistics
 import sys
 from collections import Counter, defaultdict
@@ -34,8 +36,19 @@ DEFAULT_COVERAGE_DIR = Path("data/coverage")
 DEFAULT_REJECTED_DIR = Path("data/rejected")
 DEFAULT_OUT_DIR = Path("shakedown_output")
 
-EXPECTED_OBSERVATIONS_PER_ROUND = 24  # 12 offset x 2 transport (SCHEMA.md bolum 3)
+# K-32: koleksiyoncuyla ayni bayrak -- ws bacagi kapaliyken tur basina 12
+# gozlem beklenir (yalnizca rest), aciksa 24 (12 offset x 2 transport,
+# SCHEMA.md bolum 3).
+WS_LEG_ENABLED_ENV_VAR = "COLLECTOR_WS_LEG_ENABLED"
 RTDS_RAW_ENDPOINTS = ("rtds_binance", "rtds_chainlink")
+
+
+def _expected_observations_per_round() -> int:
+    return 24 if os.environ.get(WS_LEG_ENABLED_ENV_VAR) == "1" else 12
+
+# K-32 PR'i: runner.py'nin round-seviyesi try/except'inin heartbeat'e
+# yazdigi sabit desen -- bkz. collector/runner.py `run()`.
+ROUND_ERROR_DETAIL_RE = re.compile(r"^round isleme hatasi round=\S+ exc_type=(\w+):")
 
 
 def _iter_jsonl(base_dir: Path, filename: str):
@@ -81,9 +94,12 @@ def build_summary(*, raw_dir: Path, coverage_dir: Path, rejected_dir: Path) -> d
 
     # 2. tur basina gozlem sayisi dagilimi
     obs_counts = [len(r.get("observations", [])) for r in rounds]
+    expected_observations_per_round = _expected_observations_per_round()
     observation_count_dist = _dist(obs_counts)
-    observation_count_dist["expected"] = EXPECTED_OBSERVATIONS_PER_ROUND
-    observation_count_dist["rounds_matching_expected"] = sum(1 for c in obs_counts if c == EXPECTED_OBSERVATIONS_PER_ROUND)
+    observation_count_dist["expected"] = expected_observations_per_round
+    observation_count_dist["rounds_matching_expected"] = sum(
+        1 for c in obs_counts if c == expected_observations_per_round
+    )
 
     # 3. offset_actual_sec sapma dagilimi (isaretli)
     offset_deviations = []
@@ -120,16 +136,40 @@ def build_summary(*, raw_dir: Path, coverage_dir: Path, rejected_dir: Path) -> d
     latency_rest_dist = _dist(latency_rest)
 
     # 7. dusen cerceve sayaclari (yalnizca job_end'de bulunan opsiyonel alanlar)
-    dropped_frame_totals = {
+    rtds_dropped_frame_totals = {
         "rtds_dropped_not_json": 0,
         "rtds_dropped_unknown_symbol": 0,
         "rtds_dropped_unknown_shape": 0,
     }
+    clob_ws_dropped_frame_totals = {
+        "clob_ws_dropped_not_json": 0,
+        "clob_ws_dropped_unknown_event_type": 0,
+        "clob_ws_dropped_unknown_shape": 0,
+    }
+    # K-32 PR'i: job_end'deki rounds_seen/rounds_missed/rounds_error --
+    # rounds.jsonl'a hic yazilmamis (kesif basarisiz ya da beklenmeyen
+    # istisna) turlar icin, round.status kirilimindan (madde 1) AYRI.
+    round_counters_by_job_id = {}
+    # K-32 PR'i: round isleme hatasinda heartbeat'e yazilan istisna tipi
+    # frekansi -- aynı hata coklu turda tekrarliyorsa burada gorunur.
+    round_error_exception_type_counts = Counter()
     job_starts_by_job_id = {}
     for h in heartbeats:
         if h.get("event") == "job_end":
-            for key in dropped_frame_totals:
-                dropped_frame_totals[key] += h.get(key) or 0
+            for key in rtds_dropped_frame_totals:
+                rtds_dropped_frame_totals[key] += h.get(key) or 0
+            for key in clob_ws_dropped_frame_totals:
+                clob_ws_dropped_frame_totals[key] += h.get(key) or 0
+            job_id = h.get("job_id")
+            round_counters_by_job_id[job_id] = {
+                "rounds_seen": h.get("rounds_seen"),
+                "rounds_missed": h.get("rounds_missed"),
+                "rounds_error": h.get("rounds_error"),
+            }
+        if h.get("event") == "error":
+            match = ROUND_ERROR_DETAIL_RE.match(h.get("detail") or "")
+            if match:
+                round_error_exception_type_counts[match.group(1)] += 1
         if h.get("event") == "job_start":
             job_id = h.get("job_id")
             if job_id is not None and job_id not in job_starts_by_job_id:
@@ -197,12 +237,15 @@ def build_summary(*, raw_dir: Path, coverage_dir: Path, rejected_dir: Path) -> d
         },
         "staleness_ms_by_transport": staleness_dist_by_transport,
         "latency_ms_rest_only": latency_rest_dist,
-        "rtds_dropped_frame_totals": dropped_frame_totals,
+        "rtds_dropped_frame_totals": rtds_dropped_frame_totals,
+        "clob_ws_dropped_frame_totals": clob_ws_dropped_frame_totals,
         "rejected_rows": {"count": len(rejected), "error_reason_counts": _counter_to_dict(rejected_error_counts)},
         "heartbeat_gaps": {"overall_max_gap_sec": overall_max_gap_sec, "by_job_id": heartbeat_gaps_by_job},
         "venue_distribution_rest_only": _counter_to_dict(venue_rest_counts),
         "ws_frame_type_distribution": _counter_to_dict(ws_frame_type_counts),
         "first_complete_round_elapsed_by_job_id": first_complete_round_elapsed,
+        "round_counters_by_job_id": round_counters_by_job_id,
+        "round_error_exception_type_counts": _counter_to_dict(round_error_exception_type_counts),
     }
 
 
@@ -240,6 +283,15 @@ def render_text(summary: dict) -> str:
     lines.append(f"10. venue dagilimi (yalnizca rest): {summary['venue_distribution_rest_only']}")
     lines.append(f"11. WS cerceve type dagilimi (K-28b): {summary['ws_frame_type_distribution']}")
     lines.append(f"12. Ilk complete turun job_start'tan elapsed suresi: {summary['first_complete_round_elapsed_by_job_id']}")
+    lines.append(f"13. Dusen CLOB WS cerceve sayaclari: {summary['clob_ws_dropped_frame_totals']}")
+    lines.append(
+        "14. Runner-seviyesi tur sayaclari (job_end, rounds_seen/rounds_missed/rounds_error): "
+        f"{summary['round_counters_by_job_id']}"
+    )
+    lines.append(
+        "15. Round isleme istisna tipi dagilimi (rounds_error'a katkida bulunan): "
+        f"{summary['round_error_exception_type_counts']}"
+    )
     return "\n".join(lines) + "\n"
 
 

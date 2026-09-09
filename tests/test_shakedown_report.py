@@ -96,7 +96,11 @@ def _setup_fixtures(tmp_path: Path) -> dict:
     return {"raw_dir": raw_dir, "coverage_dir": coverage_dir, "rejected_dir": rejected_dir}
 
 
-def test_build_summary_computes_expected_sections(tmp_path):
+def test_build_summary_computes_expected_sections(tmp_path, monkeypatch):
+    # K-32: fixture bir ws + bir rest gozlemi tasiyor -- bu, ws bacagi
+    # acik varsayimiyla yazildi, bayragi acikca "1" yapip o varsayimi
+    # koruyoruz. Kapali (varsayilan) durum icin ayri test asagida.
+    monkeypatch.setenv("COLLECTOR_WS_LEG_ENABLED", "1")
     dirs = _setup_fixtures(tmp_path)
     summary = build_summary(raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"])
 
@@ -132,6 +136,21 @@ def test_build_summary_computes_expected_sections(tmp_path):
         "rtds_dropped_unknown_symbol": 1,
         "rtds_dropped_unknown_shape": 0,
     }
+    # K-32: fixture'daki job_end'de clob_ws_dropped_* alanlari yok --
+    # eksik olan job_end'lerde 0'a duser, KeyError firlamaz.
+    assert summary["clob_ws_dropped_frame_totals"] == {
+        "clob_ws_dropped_not_json": 0,
+        "clob_ws_dropped_unknown_event_type": 0,
+        "clob_ws_dropped_unknown_shape": 0,
+    }
+    # K-32: fixture'daki job_end'de rounds_seen/rounds_missed/rounds_error
+    # yok -- None olarak gorunur, round.status kirilimindan (madde 1) ayri.
+    assert summary["round_counters_by_job_id"]["job1"] == {
+        "rounds_seen": None,
+        "rounds_missed": None,
+        "rounds_error": None,
+    }
+    assert summary["round_error_exception_type_counts"] == {}
 
     assert summary["rejected_rows"]["count"] == 2
     assert summary["rejected_rows"]["error_reason_counts"]["missing field: foo"] == 2
@@ -186,3 +205,61 @@ def test_build_summary_handles_empty_input(tmp_path):
     assert summary["rounds_seen"] == 0
     assert summary["round_status_counts"] == {}
     assert summary["heartbeat_gaps"]["overall_max_gap_sec"] is None
+
+
+def test_expected_observations_defaults_to_12_when_ws_leg_disabled(tmp_path, monkeypatch):
+    """K-32: bayrak ayarlanmamis/`"0"` -- ws bacagi kapali varsayilani,
+    tur basina beklenen 12 gozlem (yalnizca rest)."""
+    monkeypatch.delenv("COLLECTOR_WS_LEG_ENABLED", raising=False)
+    dirs = _setup_fixtures(tmp_path)
+    summary = build_summary(raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"])
+    assert summary["observation_count_distribution"]["expected"] == 12
+
+
+def test_round_error_exception_type_counts_parses_runner_error_detail(tmp_path):
+    """K-32: runner.py'nin round-seviyesi try/except'inin heartbeat'e
+    yazdigi sabit desen -- aynı istisna coklu turda tekrarliyorsa burada
+    frekans tablosu olarak gorunmeli (kullanicinin istedigi teshis)."""
+    raw_dir = tmp_path / "raw"
+    coverage_dir = tmp_path / "coverage"
+    rejected_dir = tmp_path / "rejected"
+
+    heartbeats = [
+        {"job_id": "job1", "event": "job_start", "ts": 900},
+        {
+            "job_id": "job1",
+            "event": "error",
+            "ts": 950,
+            "detail": "round isleme hatasi round=btc-updown-5m-1 exc_type=ValueError: bad book",
+        },
+        {
+            "job_id": "job1",
+            "event": "error",
+            "ts": 1000,
+            "detail": "round isleme hatasi round=btc-updown-5m-2 exc_type=ValueError: bad book again",
+        },
+        {
+            "job_id": "job1",
+            "event": "error",
+            "ts": 1010,
+            "detail": "market bulunamadi, round atlandi: btc-updown-5m-3",
+        },
+        {
+            "job_id": "job1",
+            "event": "job_end",
+            "ts": 1100,
+            "rounds_seen": 0,
+            "rounds_missed": 1,
+            "rounds_error": 2,
+        },
+    ]
+    _write_jsonl(coverage_dir / "runner=longjob" / "date=2026-01-01" / "heartbeat.jsonl", heartbeats)
+
+    summary = build_summary(raw_dir=raw_dir, coverage_dir=coverage_dir, rejected_dir=rejected_dir)
+
+    assert summary["round_error_exception_type_counts"] == {"ValueError": 2}
+    assert summary["round_counters_by_job_id"]["job1"] == {
+        "rounds_seen": 0,
+        "rounds_missed": 1,
+        "rounds_error": 2,
+    }

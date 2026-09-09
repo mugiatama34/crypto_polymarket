@@ -43,6 +43,7 @@ class LongjobRunner:
         job_duration_sec: int = DEFAULT_JOB_DURATION_SEC,
         shutdown_margin_sec: int = DEFAULT_SHUTDOWN_MARGIN_SEC,
         commit_interval_sec: int = DEFAULT_COMMIT_INTERVAL_SEC,
+        ws_leg_enabled: bool = False,
     ):
         self.runner_id = runner_id
         self.job_id = job_id or f"longjob-{uuid.uuid4().hex[:12]}"
@@ -59,6 +60,9 @@ class LongjobRunner:
         self.job_duration_sec = job_duration_sec
         self.shutdown_margin_sec = shutdown_margin_sec
         self.commit_interval_sec = commit_interval_sec
+        # K-32: ws bacagi (RTDS + CLOB WS) varsayilan kapali -- kapaliyken
+        # bu iki client'in .run()'u hic cagrilmaz, baglanti hic kurulmaz.
+        self.ws_leg_enabled = ws_leg_enabled
 
         self.heartbeat = HeartbeatWriter(
             runner_id=runner_id,
@@ -69,6 +73,10 @@ class LongjobRunner:
         self._chosen_exchange: Optional[str] = None
         self.rounds_seen = 0
         self.rounds_missed = 0
+        # K-32 PR'i: `rounds_missed`den ayri -- market bulunamamasi (kesif
+        # sorunu) ile beklenmeyen bir istisna (kod bug'i) farkli
+        # duzeltmeler gerektirir, tek sayacta ayirt edilemez.
+        self.rounds_error = 0
         self.discovery_slug_hits = 0
         self.discovery_listing_hits = 0
 
@@ -132,14 +140,20 @@ class LongjobRunner:
             target_ms = offset_target_ts_ms(market.close_ts_ms, offset_sec)
             await self._sleep_with_heartbeat(target_ms)
 
-            ws_obs, ws_raw = await sampler.build_ws_observation(
-                offset_sec=offset_sec,
-                close_ts_ms=market.close_ts_ms,
-                token_ids=market.token_ids,
-                rtds_client=self.rtds_client,
-                clob_ws_client=self.clob_ws_client,
-                now_ms_fn=self.clock.now_ms,
-            )
+            # K-32: ws bacagi kapaliyken ws gozlemi hic uretilmez -- tur
+            # basina 12 gozlem (24 degil), rest bacagi tek kaynak.
+            if self.ws_leg_enabled:
+                ws_obs, ws_raw = await sampler.build_ws_observation(
+                    offset_sec=offset_sec,
+                    close_ts_ms=market.close_ts_ms,
+                    token_ids=market.token_ids,
+                    rtds_client=self.rtds_client,
+                    clob_ws_client=self.clob_ws_client,
+                    now_ms_fn=self.clock.now_ms,
+                )
+                observations.append(ws_obs)
+                raw.extend(ws_raw)
+
             rest_obs, rest_raw = await sampler.build_rest_observation(
                 offset_sec=offset_sec,
                 close_ts_ms=market.close_ts_ms,
@@ -148,9 +162,7 @@ class LongjobRunner:
                 exchange=self._chosen_exchange,
                 now_ms_fn=self.clock.now_ms,
             )
-            observations.append(ws_obs)
             observations.append(rest_obs)
-            raw.extend(ws_raw)
             raw.extend(rest_raw)
             self._maybe_tick()
 
@@ -195,20 +207,24 @@ class LongjobRunner:
         else:
             self.discovery_slug_hits += 1
 
-        await self.clob_ws_client.subscribe([market.token_ids["up"], market.token_ids["down"]])
+        if self.ws_leg_enabled:
+            await self.clob_ws_client.subscribe([market.token_ids["up"], market.token_ids["down"]])
         round_record = await self._run_round(market)
         writer.write_round(round_record, base_dir=self.raw_base_dir, rejected_base_dir=self.rejected_base_dir)
         self.rounds_seen += 1
 
     async def run(self) -> None:
-        set_rtds_on_disconnect = getattr(self.rtds_client, "set_on_disconnect", None)
-        if set_rtds_on_disconnect is not None:
-            set_rtds_on_disconnect(lambda duration_ms, error: self._on_ws_disconnect("RTDS", duration_ms, error))
-        set_clob_ws_on_disconnect = getattr(self.clob_ws_client, "set_on_disconnect", None)
-        if set_clob_ws_on_disconnect is not None:
-            set_clob_ws_on_disconnect(
-                lambda duration_ms, error: self._on_ws_disconnect("CLOB WS", duration_ms, error)
-            )
+        rtds_task = None
+        clob_ws_task = None
+        if self.ws_leg_enabled:
+            set_rtds_on_disconnect = getattr(self.rtds_client, "set_on_disconnect", None)
+            if set_rtds_on_disconnect is not None:
+                set_rtds_on_disconnect(lambda duration_ms, error: self._on_ws_disconnect("RTDS", duration_ms, error))
+            set_clob_ws_on_disconnect = getattr(self.clob_ws_client, "set_on_disconnect", None)
+            if set_clob_ws_on_disconnect is not None:
+                set_clob_ws_on_disconnect(
+                    lambda duration_ms, error: self._on_ws_disconnect("CLOB WS", duration_ms, error)
+                )
 
         probe_result = await exchange_probe.probe_exchanges(self.http_client)
         self._chosen_exchange = probe_result.exchange
@@ -216,10 +232,12 @@ class LongjobRunner:
         detail = f"exchange={self._chosen_exchange}"
         if blocked:
             detail += f" blocked={','.join(blocked)}"
+        detail += f" ws_leg={'on' if self.ws_leg_enabled else 'off'}"
         self.heartbeat.job_start(detail=detail)
 
-        rtds_task = asyncio.create_task(self.rtds_client.run())
-        clob_ws_task = asyncio.create_task(self.clob_ws_client.run())
+        if self.ws_leg_enabled:
+            rtds_task = asyncio.create_task(self.rtds_client.run())
+            clob_ws_task = asyncio.create_task(self.clob_ws_client.run())
 
         state = load_state(self.state_path)
         if state.last_processed_round_epoch_s is not None:
@@ -231,33 +249,49 @@ class LongjobRunner:
         deadline_ms = job_start_ms + self.job_duration_sec * 1000
         last_commit_ms = job_start_ms
 
-        while (deadline_ms - self.clock.now_ms()) >= self.shutdown_margin_sec * 1000:
-            await self._process_one_round(round_start_s)
+        try:
+            while (deadline_ms - self.clock.now_ms()) >= self.shutdown_margin_sec * 1000:
+                try:
+                    await self._process_one_round(round_start_s)
+                except Exception as exc:  # noqa: BLE001 -- tek turun beklenmeyen hatasi koşumu oldurmez
+                    self.rounds_error += 1
+                    self.heartbeat.error(
+                        f"round isleme hatasi round={round_slug(round_start_s)} "
+                        f"exc_type={type(exc).__name__}: {exc}"
+                    )
 
-            state.last_processed_round_epoch_s = round_start_s
-            state.updated_at_ms = self.clock.now_ms()
-            save_state(state, self.state_path)
+                state.last_processed_round_epoch_s = round_start_s
+                state.updated_at_ms = self.clock.now_ms()
+                save_state(state, self.state_path)
 
-            last_commit_ms = self._maybe_commit(last_commit_ms)
+                last_commit_ms = self._maybe_commit(last_commit_ms)
 
-            round_start_s += ROUND_SECONDS
-            await self._sleep_with_heartbeat(round_start_s * 1000)
+                round_start_s += ROUND_SECONDS
+                await self._sleep_with_heartbeat(round_start_s * 1000)
+        finally:
+            # K-06: is bitisi de kaydedilmeli -- donguden nasil cikildigina
+            # bakmaksizin (temiz kapanis, ust satirdaki try'in yakalamadigi
+            # bir istisna) son commit ve job_end her zaman yazilir.
+            if self.ws_leg_enabled:
+                self.rtds_client.stop()
+                self.clob_ws_client.stop()
+                await asyncio.gather(rtds_task, clob_ws_task, return_exceptions=True)
 
-        self.rtds_client.stop()
-        self.clob_ws_client.stop()
-        await asyncio.gather(rtds_task, clob_ws_task, return_exceptions=True)
-
-        self._maybe_commit(last_commit_ms, force=True)
-        self.heartbeat.job_end(
-            rounds_seen=self.rounds_seen,
-            rounds_missed=self.rounds_missed,
-            discovery_slug_hits=self.discovery_slug_hits,
-            discovery_listing_hits=self.discovery_listing_hits,
-            # K-25/K-29: rtds_client test double'larinda bu sayaclar
-            # olmayabilir (bkz. _drain_rtds_alerts'teki ayni getattr
-            # deseni) -- boyle durumda 0 yazilir.
-            rtds_dropped_not_json=getattr(self.rtds_client, "dropped_not_json", 0),
-            rtds_dropped_unknown_symbol=getattr(self.rtds_client, "dropped_unknown_symbol", 0),
-            rtds_dropped_unknown_shape=getattr(self.rtds_client, "dropped_unknown_shape", 0),
-            detail="6 saat siniri yaklasti, temiz kapanis",
-        )
+            self._maybe_commit(last_commit_ms, force=True)
+            self.heartbeat.job_end(
+                rounds_seen=self.rounds_seen,
+                rounds_missed=self.rounds_missed,
+                rounds_error=self.rounds_error,
+                discovery_slug_hits=self.discovery_slug_hits,
+                discovery_listing_hits=self.discovery_listing_hits,
+                # K-25/K-29: rtds_client/clob_ws_client test double'larinda
+                # bu sayaclar olmayabilir (bkz. _drain_rtds_alerts'teki
+                # ayni getattr deseni) -- boyle durumda 0 yazilir.
+                rtds_dropped_not_json=getattr(self.rtds_client, "dropped_not_json", 0),
+                rtds_dropped_unknown_symbol=getattr(self.rtds_client, "dropped_unknown_symbol", 0),
+                rtds_dropped_unknown_shape=getattr(self.rtds_client, "dropped_unknown_shape", 0),
+                clob_ws_dropped_not_json=getattr(self.clob_ws_client, "dropped_not_json", 0),
+                clob_ws_dropped_unknown_event_type=getattr(self.clob_ws_client, "dropped_unknown_event_type", 0),
+                clob_ws_dropped_unknown_shape=getattr(self.clob_ws_client, "dropped_unknown_shape", 0),
+                detail="6 saat siniri yaklasti, temiz kapanis",
+            )

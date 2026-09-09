@@ -282,6 +282,14 @@ Böylece:
 zorunlu alandır; eksikse veya `ws`/`rest` dışında bir değer taşıyorsa
 satır reddedilir.
 
+**Güncelleme (K-32) — taşıma karşılaştırması askıda, iptal değil:**
+`COLLECTOR_WS_LEG_ENABLED=0` (varsayılan) ile ws bacağı üretimde
+kapatıldı — bkz. K-32. Bu maddenin tasarımı (her offset'te iki taşıma
+yolu, `transport` zorunlu alan) DEĞİŞMEDİ; bayrak açıldığında aynı
+karşılaştırma aynen çalışır. Şu an tek fark: bayrak kapalıyken her
+round yalnızca `rest` gözlemi üretiyor, `transport` hâlâ zorunlu alan
+ama tek değer taşıyor.
+
 ---
 
 ## K-19 — REST bacağının referans borsası WS bacağıyla aynı olmayabilir
@@ -819,3 +827,79 @@ zaten uyumlu (daha yüksek bir değer verilse de aşılamazdı).
 
 **Genel kural:** `${{ }}` içinde aritmetik gerekiyorsa bash step'i
 içinde `$(( ))` ile yapılır, asla `${{ }}`'in kendi ifade dilinde değil.
+
+---
+
+## K-32 — ws bacağı askıya alındı: REST-only toplamaya geçildi
+
+Shakedown #3 (34 dakikalık gerçek koşum, bkz. bu koşumun failure
+analizi) iki bulguyu birlikte ortaya çıkardı:
+
+1. **K-28b doğrulandı.** RTDS gerçek zamanlı `update` çerçevesi
+   vermiyor — yalnızca ~125 saniyede bir zorla-yeniden-bağlanma
+   döngüsünde bir kerelik geçmiş döküm veriyor. Bir round içinde
+   `feed_ts` tam olarak bir kez değişiyor, tam da bu reconnect anında;
+   arada hiç güncelleme yok. `staleness_ms` (ws) medyanı 65 saniye,
+   maksimum 125 saniye — WS'in vaat ettiği tazelik avantajı bu koşumda
+   hiç gerçekleşmedi.
+2. **Yeni bulgu: CLOB market WS defteri hiç dolmadı.** 6/6 tur, 72/72
+   ws-gözlemde `book.up`/`book.down` boş kaldı (`error: "eksik:
+   book.up, book.down"`). Aynı asset_id'ler için CLOB REST defteri
+   (`clob_rest.fetch_book`) her turda kusursuz çalıştı — sorun CLOB
+   API'de veya asset_id'lerde değil, özellikle CLOB WebSocket
+   kanalında. Bağlantı 33 dakika boyunca stabildi (hiç reconnect yok),
+   yani abonelik mesajı büyük ihtimalle gönderiliyordu; sunucunun hiç
+   `book`/`price_change` döndürmediği mi, yoksa döndürüp bir yerde
+   sessizce mi düştüğü (event_type, asset_id şekli) ölçülmedi (bkz.
+   K-33).
+
+Sonuç olarak ws bacağının turu "complete" yapmaya hiçbir katkısı
+olmadı — tam tersi, her turu garanti "partial"a düşürdü (rest bacağı
+sağlıklı olsa da `statuses={"ok","partial"} → "partial"`). WS'in vaat
+ettiği tazelik/kapsama avantajı bu koşumda ÖLÇÜLEMEDİ; ölçülen tek şey
+zarar (staleness kötüleşmesi, defter hiç dolmaması).
+
+**Sonuç:** ws bacağı (RTDS + CLOB WS) `COLLECTOR_WS_LEG_ENABLED`
+ortam değişkeniyle kapatıldı, **varsayılan kapalı**. Kapalıyken RTDS
+ve CLOB WS bağlantıları hiç kurulmaz, ws gözlemi hiç üretilmez, tur
+başına 12 gözlem (rest-only) yazılır. Kod SİLİNMEDİ — `rtds_ws.py`,
+`clob_ws.py`, `sampler.build_ws_observation` yerinde duruyor, bayrak
+`"1"` yapılınca geri gelir. Bu bir iptal değil, askıya alma: WS'in
+gerçek değeri (varsa) ancak K-33'teki teşhis yapılıp CLOB WS defteri
+neden dolmuyor sorusu cevaplanınca yeniden değerlendirilir. K-18'in
+transport-karşılaştırması tasarımı bozulmadı, bkz. o maddenin
+güncellemesi.
+
+---
+
+## K-33 — CLOB WS defterinin hiç dolmama sebebi ölçülmedi (AÇIK İŞ)
+
+K-32'de not edilen ikinci bulgu — 6/6 turda, 72/72 ws-gözlemde CLOB
+market WS defterinin tamamen boş kalması — bu PR'da teşhis edilmedi,
+yalnızca gözlemlendi. Elimizdeki veriyle ayırt edilemeyen en az iki
+olası açıklama var:
+
+- **Sunucu hiç `book`/`price_change` göndermiyor** — RTDS'in K-27'de
+  bulunan "abonelik zarfında `action` alanı eksik, sunucu sessizce yok
+  sayıyor" sorununa benzer bir istemci-tarafı şekil uyumsuzluğu
+  olabilir (`clob_ws.py._subscribe_message`'daki `assets_ids`/
+  `custom_feature_enabled` alanları resmi dokümandan kopyalandı ama
+  gerçek uca karşı hiç doğrulanmadı).
+- **Sunucu gönderiyor ama istemci sessizce düşürüyor** — ör. `asset_id`
+  tip/format uyuşmazlığı (abone olunan token_id ile gelen çerçevedeki
+  `asset_id` aynı temsilde değilse `cache` hiç eşleşmez).
+
+Bu ikisini ayırt etmenin yolu RTDS için K-25/K-26/K-27'de izlenen aynı
+yöntem: ham CLOB WS çerçevesini kaydeden, üretime bağlanmayan ayrı bir
+prob (`scripts/rtds_raw_capture.py`/`rtds_cf_diagnosis.py`'nin CLOB WS
+karşılığı). K-32 PR'ı bu problamayı YAZMADI — yalnızca `clob_ws.py`'nin
+`_handle_message`'ındaki sessiz düşürmeler için sayaç eklendi
+(`dropped_not_json`, `dropped_unknown_event_type`,
+`dropped_unknown_shape`, K-25'in CLOB WS karşılığı) — bu sayaçlar
+CLOB WS'in etkin olduğu bir koşumda "en azından sessizce düşen bir şey
+var mı" sorusuna toplu bir cevap verir, ama ham çerçeve kaydı olmadan
+*hangi* şekil sorunu olduğunu göstermez.
+
+**Sonuç:** CLOB WS defterinin neden dolmadığı açık bir teşhis işi.
+Bayrak (K-32) tekrar açılmadan önce bu ölçülmeli — aksi halde aynı
+%100 boş defter tekrarlanır.

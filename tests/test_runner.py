@@ -147,11 +147,13 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
             job_duration_sec=650,
             shutdown_margin_sec=60,
             commit_interval_sec=200,
+            ws_leg_enabled=True,  # K-32: varsayilan kapali, bu test ws yolunu kasitli aciyor
         )
         await runner.run()
 
     assert runner.rounds_seen == 2
     assert runner.rounds_missed == 0
+    assert runner.rounds_error == 0
     assert runner.discovery_slug_hits == 2
     assert runner.discovery_listing_hits == 0
     assert rtds.ran is True
@@ -164,7 +166,7 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
     lines = rounds_path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 2
     round1 = json.loads(lines[0])
-    assert len(round1["observations"]) == 24  # 12 offset * 2 transport
+    assert len(round1["observations"]) == 24  # ws_leg_enabled=True: 12 offset * 2 transport
     assert round1["status"] in ("complete", "partial")
     assert round1["decision"] is None
 
@@ -173,14 +175,20 @@ async def test_run_processes_two_rounds_and_writes_expected_records(tmp_path):
     assert heartbeat_files
     heartbeat_lines = [json.loads(line) for line in heartbeat_files[0].read_text(encoding="utf-8").splitlines()]
     assert heartbeat_lines[0]["event"] == "job_start"
+    assert "ws_leg=on" in heartbeat_lines[0]["detail"]
     assert heartbeat_lines[-1]["event"] == "job_end"
     assert heartbeat_lines[-1]["discovery_slug_hits"] == 2
     assert heartbeat_lines[-1]["discovery_listing_hits"] == 0
+    assert heartbeat_lines[-1]["rounds_error"] == 0
     assert "discovery_slug_hits" not in heartbeat_lines[0]  # job_start'ta yok (K-21)
     # K-25/K-29: rtds_client'in dusen cerceve sayaclari job_end'e geciyor.
     assert heartbeat_lines[-1]["rtds_dropped_not_json"] == 3
     assert heartbeat_lines[-1]["rtds_dropped_unknown_symbol"] == 1
     assert heartbeat_lines[-1]["rtds_dropped_unknown_shape"] == 2
+    # K-32: clob_ws test double'inda bu sayaclar yok -- getattr(...,0) guvenli varsayilan.
+    assert heartbeat_lines[-1]["clob_ws_dropped_not_json"] == 0
+    assert heartbeat_lines[-1]["clob_ws_dropped_unknown_event_type"] == 0
+    assert heartbeat_lines[-1]["clob_ws_dropped_unknown_shape"] == 0
     assert "rtds_dropped_not_json" not in heartbeat_lines[0]  # job_start'ta yok
 
     log = _git(["log", "--oneline"], cwd=repo_dir).stdout
@@ -379,3 +387,176 @@ async def test_run_tracks_discovery_hits_when_second_round_falls_back_to_listing
     lines = [json.loads(line) for line in rounds_path.read_text(encoding="utf-8").splitlines()]
     assert lines[0]["raw"][0]["endpoint"] == "gamma_event_slug"
     assert lines[1]["raw"][0]["endpoint"] == "gamma_event_listing"
+
+
+@pytest.mark.asyncio
+async def test_ws_leg_disabled_by_default_produces_rest_only_rounds(tmp_path):
+    """K-32: varsayilan `ws_leg_enabled=False` -- RTDS/CLOB WS .run() hic
+    cagrilmaz, subscribe hic yapilmaz, tur basina 12 gozlem (rest-only)."""
+    repo_dir = _init_repo(tmp_path)
+    requested_slugs = []
+    transport = _make_http_client(requested_slugs)
+
+    rtds = FakeSimpleWSClient({})
+    clob_ws = FakeClobWSClient({})
+    clock = FakeClock(start_ms=(ALIGNED_EPOCH_S - 10) * 1000)
+
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        runner = LongjobRunner(
+            http_client=http_client,
+            rtds_client=rtds,
+            clob_ws_client=clob_ws,
+            clock=clock,
+            state_path=repo_dir / "state" / "longjob.json",
+            raw_base_dir=repo_dir / "data" / "raw",
+            coverage_base_dir=repo_dir / "data" / "coverage",
+            rejected_base_dir=repo_dir / "data" / "rejected",
+            repo_dir=repo_dir,
+            job_duration_sec=350,
+            shutdown_margin_sec=60,
+            commit_interval_sec=200,
+        )
+        assert runner.ws_leg_enabled is False
+        await runner.run()
+
+    assert rtds.ran is False
+    assert clob_ws.ran is False
+    assert clob_ws.subscribe_calls == []
+
+    date_str = datetime.fromtimestamp(ALIGNED_EPOCH_S, tz=timezone.utc).strftime("%Y-%m-%d")
+    rounds_path = repo_dir / "data" / "raw" / "runner=longjob" / f"date={date_str}" / "rounds.jsonl"
+    lines = [json.loads(line) for line in rounds_path.read_text(encoding="utf-8").splitlines()]
+    assert len(lines) == 1
+    assert len(lines[0]["observations"]) == 12  # yalnizca rest, ws hic uretilmedi
+    assert {o["transport"] for o in lines[0]["observations"]} == {"rest"}
+
+    heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
+    heartbeat_lines = [
+        json.loads(line)
+        for line in list(heartbeat_dir.rglob("heartbeat.jsonl"))[0].read_text(encoding="utf-8").splitlines()
+    ]
+    assert "ws_leg=off" in heartbeat_lines[0]["detail"]
+    assert heartbeat_lines[-1]["event"] == "job_end"
+
+
+@pytest.mark.asyncio
+async def test_unexpected_exception_in_one_round_increments_rounds_error_and_continues(tmp_path):
+    """K-32: `_process_one_round`'daki BEKLENMEYEN bir istisna (kesif
+    basarisizligi degil) turu atlar, `rounds_error`'i artirir, istisna
+    tipini heartbeat'e yazar ve bir sonraki tura gecer -- koşumu oldurmez."""
+    repo_dir = _init_repo(tmp_path)
+    requested_slugs = []
+    transport = _make_http_client(requested_slugs)
+
+    rtds = FakeSimpleWSClient({})
+
+    class RaisingOnceClobWSClient(FakeClobWSClient):
+        async def subscribe(self, asset_ids):
+            await super().subscribe(asset_ids)
+            if len(self.subscribe_calls) == 1:
+                raise ValueError("boom on first round")
+
+    clob_ws = RaisingOnceClobWSClient(
+        {
+            "333": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+            "444": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+        }
+    )
+    clock = FakeClock(start_ms=(ALIGNED_EPOCH_S - 10) * 1000)
+
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        runner = LongjobRunner(
+            http_client=http_client,
+            rtds_client=rtds,
+            clob_ws_client=clob_ws,
+            clock=clock,
+            state_path=repo_dir / "state" / "longjob.json",
+            raw_base_dir=repo_dir / "data" / "raw",
+            coverage_base_dir=repo_dir / "data" / "coverage",
+            rejected_base_dir=repo_dir / "data" / "rejected",
+            repo_dir=repo_dir,
+            job_duration_sec=650,
+            shutdown_margin_sec=60,
+            commit_interval_sec=200,
+            ws_leg_enabled=True,
+        )
+        await runner.run()
+
+    # round1'in subscribe'i patladi -> yazilmadi, atlandi; round2 normal islendi.
+    assert runner.rounds_seen == 1
+    assert runner.rounds_missed == 0
+    assert runner.rounds_error == 1
+
+    heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
+    heartbeat_lines = [
+        json.loads(line)
+        for line in list(heartbeat_dir.rglob("heartbeat.jsonl"))[0].read_text(encoding="utf-8").splitlines()
+    ]
+    error_details = [h["detail"] for h in heartbeat_lines if h["event"] == "error"]
+    assert any("exc_type=ValueError" in d and "round isleme hatasi" in d for d in error_details)
+    assert heartbeat_lines[-1]["event"] == "job_end"
+    assert heartbeat_lines[-1]["rounds_error"] == 1
+
+    date_str = datetime.fromtimestamp(ALIGNED_EPOCH_S, tz=timezone.utc).strftime("%Y-%m-%d")
+    rounds_path = repo_dir / "data" / "raw" / "runner=longjob" / f"date={date_str}" / "rounds.jsonl"
+    lines = [json.loads(line) for line in rounds_path.read_text(encoding="utf-8").splitlines()]
+    assert len(lines) == 1  # yalnizca round2 yazildi, round1 hic yazilmadi
+
+
+@pytest.mark.asyncio
+async def test_job_end_written_even_when_loop_raises_past_round_guard(tmp_path):
+    """K-32: point 3 -- round-seviyesi try/except'in KAPSAMADIGI bir
+    istisna (burada save_state hatasi) donguden kacsa bile, finally
+    blogu son commit'i ve job_end'i yazmayi garanti eder (K-06)."""
+    repo_dir = _init_repo(tmp_path)
+    requested_slugs = []
+    transport = _make_http_client(requested_slugs)
+
+    rtds = FakeSimpleWSClient({})
+    clob_ws = FakeClobWSClient(
+        {
+            "111": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+            "222": {"book_side": _book_side(), "venue_ts_ms": 1717000060000},
+        }
+    )
+    clock = FakeClock(start_ms=(ALIGNED_EPOCH_S - 10) * 1000)
+
+    # state_path'in PARENT'i onceden bir DOSYA olarak var -- save_state
+    # icindeki path.parent.mkdir(parents=True, exist_ok=True) bu yuzden
+    # FileExistsError firlatir (round guard'in disinda, while govdesinde).
+    blocker = repo_dir / "state_blocker"
+    blocker.write_text("not a directory", encoding="utf-8")
+    state_path = blocker / "longjob.json"
+
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        runner = LongjobRunner(
+            http_client=http_client,
+            rtds_client=rtds,
+            clob_ws_client=clob_ws,
+            clock=clock,
+            state_path=state_path,
+            raw_base_dir=repo_dir / "data" / "raw",
+            coverage_base_dir=repo_dir / "data" / "coverage",
+            rejected_base_dir=repo_dir / "data" / "rejected",
+            repo_dir=repo_dir,
+            job_duration_sec=650,
+            shutdown_margin_sec=60,
+            commit_interval_sec=200,
+            ws_leg_enabled=True,
+        )
+        with pytest.raises((FileExistsError, NotADirectoryError)):
+            await runner.run()
+
+    assert runner.rounds_seen == 1  # ilk round basariyla islendi, save_state'te patladi
+
+    heartbeat_dir = repo_dir / "data" / "coverage" / "runner=longjob"
+    heartbeat_lines = [
+        json.loads(line)
+        for line in list(heartbeat_dir.rglob("heartbeat.jsonl"))[0].read_text(encoding="utf-8").splitlines()
+    ]
+    # istisna round guard'i atlayip donguden kacti, ama finally hala calisti.
+    assert heartbeat_lines[-1]["event"] == "job_end"
+    assert heartbeat_lines[-1]["rounds_seen"] == 1
+
+    log = _git(["log", "--oneline"], cwd=repo_dir).stdout
+    assert "longjob" in log  # finally icindeki force commit de calisti

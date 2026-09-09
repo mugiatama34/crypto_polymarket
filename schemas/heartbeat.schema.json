@@ -19,8 +19,12 @@
     "detail": { "type": ["string", "null"] },
     "discovery_slug_hits": { "type": "integer" },
     "discovery_listing_hits": { "type": "integer" },
+    "rounds_error": { "type": "integer" },
     "rtds_dropped_not_json": { "type": "integer" },
     "rtds_dropped_unknown_symbol": { "type": "integer" },
-    "rtds_dropped_unknown_shape": { "type": "integer" }
+    "rtds_dropped_unknown_shape": { "type": "integer" },
+    "clob_ws_dropped_not_json": { "type": "integer" },
+    "clob_ws_dropped_unknown_event_type": { "type": "integer" },
+    "clob_ws_dropped_unknown_shape": { "type": "integer" }
   }
 }
