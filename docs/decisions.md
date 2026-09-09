@@ -131,6 +131,20 @@ REST'e düşer. İki runner farklı kalitede oracle verisi üretecek.
 damgasını (`feed_ts`) ayrı tutar. Kaynak yazılmazsa iki runner arasındaki
 farkın nereden geldiği bilinemez.
 
+**Güncelleme (K-28 sonrası) — `feed_ts` kaynağı varsayımı çürüdü:**
+`collector/rtds_ws.py._handle_message`, `feed_ts_ms`'i `payload.get("timestamp")`'tan
+okuyor; modül docstring'i bunu "zarf seviyesindeki `timestamp` yayıncının
+gönderim zamanı, Chainlink'in kendi gözlem zamanı `payload.timestamp`
+içinde" varsayımıyla gerekçelendiriyordu. `probe_output/20260909T074807Z`
+(K-27) ve `probe_output/20260909T082742Z` (K-28) koşumlarında gözlenen
+HİÇBİR çerçevede `payload.timestamp` alanı yoktu — ne initial dump'ta
+(`payload: {data, symbol}`), ne de gerçek bir `update` şeklinde çerçeve
+(hiç gözlenmedi, bkz. K-28b). Varsayım şu an çürütülmüş sayılır: iki
+koşumda da gözlenen tek zaman kaynağı zarf seviyesindeki `timestamp`.
+`payload.data[]` içindeki nokta-bazlı zaman damgalarının `feed_ts` için
+kullanılıp kullanılamayacağı ayrı bir soru (bkz. K-28a); düzeltme kod
+yazılırken ele alınacak, burada yalnızca varsayımın düştüğü kaydediliyor.
+
 ---
 
 ## K-09 — Sinyal kaynağı çözüm kaynağı değildir
@@ -582,3 +596,85 @@ seferde push ediyor; sonraki gerçek zamanlı güncellemelerin
 `type: "update"` ile geleceği varsayılıyor ama bu koşumda gözlenmedi
 (pencere 2. çerçeveden sonra kapandı) — doğrulanması ayrı bir ölçüm
 gerektirir.
+
+---
+
+## K-28a — `topic` alanı ayırt edici değil: chainlink verisi `crypto_prices` etiketiyle geliyor
+
+`probe_output/20260909T082742Z/rtds_a1_dual_topic.json` (A1 şekli,
+`crypto_prices` + `crypto_prices_chainlink` tek mesajda, 60s, sınırsız
+kayıt) K-27'nin açık bıraktığı soruyu (chainlink çerçeve veriyor mu)
+cevapladı — ama beklenmedik bir şekilde: gelen iki initial-dump
+çerçevesinin de zarf seviyesi `topic` alanı `"crypto_prices"` yazıyor.
+İkisini ayıran tek şey `payload.symbol`:
+
+| | Çerçeve 0 | Çerçeve 1 |
+|---|---|---|
+| `topic` (zarf) | `crypto_prices` | `crypto_prices` **(yanlış)** |
+| `payload.symbol` | `btcusdt` | `btc/usd` ← chainlink'in sembolü |
+| nokta sayısı | 120 | 54 |
+| değer hassasiyeti | `79558.61` (2 ondalık) | `79593.32504159183` (14 ondalık) |
+
+`payload.symbol` (ve değer hassasiyeti) olmasa bu iki dökümü ayırt etmenin
+yolu yok. `collector/rtds_ws.py._handle_message`, cache'e
+`envelope.get("topic")`'e göre yazıyor (`topic not in self.cache: return`)
+— bu prob verisiyle chainlink dökümü `"crypto_prices"` etiketiyle geldiği
+için `self.cache["crypto_prices"]` tarafına gider (ya da initial dump
+olduğu için hiç işlenmez, bkz. K-28b), `self.cache["crypto_prices_chainlink"]`
+hiç dolmaz. İkisi de geçerli bir BTC fiyatı olduğu için hata görünmez —
+sessiz, yanlış-pozitif bir eşleşme. K-09'un ("sinyal kaynağı çözüm
+kaynağı değildir, `btc_reference`/`btc_oracle` ayrı ayrı kaydedilir")
+koda geçtiğinde nasıl bozulabileceğinin somut örneği: `topic`'e güvenerek
+yazılan bir alan, aslında iki farklı kaynağı karıştırabilir.
+
+**Sonuç:** düzeltme PR'ında topic eşleştirmesi `envelope.get("topic")`
+yerine (ya da onunla birlikte) `payload.get("symbol")`'a göre yapılmalı —
+`_SYMBOL_BY_TOPIC` sözlüğünün tersi (sembolden topic'e) eklenmeli. Bu,
+K-27'nin `action` alanı düzeltmesiyle aynı PR'da ele alınacak.
+
+---
+
+## K-28b — 60 saniyelik pencerede sıfır `update` çerçevesi (DOĞRULANMADI)
+
+Aynı koşumda, abonelik anındaki iki `type:"subscribe"` initial-dump
+çerçevesinden sonra 60 saniye boyunca — 11 uygulama-seviyesi PING'e
+rağmen (5s kadans, üretimle aynı) — hiçbir çerçeve gelmedi. Bağlantı
+`close_code: 1000` ile temiz kapandı; kesilme yok, sadece sessizlik.
+WS, sürekli bir güncelleme akışı yerine, abone olunca son ~1-2 dakikayı
+tek seferde veren bir uç gibi davrandı.
+
+Bu **DOĞRULANMADI**: tek bir 60 saniyelik koşum, örneklem küçük, piyasa
+o an sakin olabilir. Ama doğrulanırsa iki sonucu var:
+
+- **K-18** — "taşıma karşılaştırması (`ws` vs `rest`) tek değişkenlidir"
+  varsayımı yeniden değerlendirilmeli. `ws` bacağı gerçek zamanlı
+  güncelleme değil de periyodik yeniden-abone/yeniden-döküm gerektiriyorsa,
+  iki taşıma yolu artık karşılaştırılabilir aynı şeyi ölçmüyor olabilir.
+- **K-23** — sessizlik eşikleri (`silence_warn_sec=30`,
+  `silence_reconnect_sec=120`) hâlâ geçicidir ve bu koşumla daha şüpheli
+  hale geldi: bu desen kalıcıysa `silence_warn_sec=30` her turda tetiklenir
+  (abonelik dökümünden 30s sonra hâlâ hiçbir update gelmemiş olur) —
+  K-23'te "geçici, ölçülmeden seçildi" denen varsayılanlar production'da
+  sürekli yanlış alarm üretiyor olabilir. Eşikler düzeltme PR'ında yeniden
+  ele alınacak, ama önce doğrulama (steady-state update'in gerçekten var
+  olup olmadığı) gerekiyor.
+
+**Sonuç:** doğrulama ayrı, daha uzun bir koşum (ve farklı bir zaman
+dilimi) gerektirir — bu düzeltme PR'ına dahil edilmeyecek, ayrı bir
+teşhis konusu olarak açık bırakılıyor.
+
+---
+
+## K-28c — Chainlink'in geçmiş dökümü Binance'den küçük ve düzensiz
+
+Aynı koşumda Binance dökümü 120 nokta, kusursuz 1000ms aralıklarla
+(119 saniyelik pencere). Chainlink dökümü 54 nokta, çoğunlukla 1000ms
+ama bazı 2000ms boşluklu (58 saniyelik pencere) — Binance'in yarısı
+kadar uzunlukta ve düzensiz.
+
+**Sonuç:** iki feed'in geçmiş döküm penceresi ve kadansı farklı — bu,
+K-20'de zaten ayrı tutulan `latency_ms`/`staleness_ms` kavramlarına ek
+bir boyut: chainlink'in "tazelik" beklentisi Binance'inkiyle aynı sabit
+değerlerle ölçülemeyebilir. Şimdilik yalnızca gözlem olarak kaydediliyor,
+eşik/metrik değişikliği yok (metrik katmanı şu anki fazın dışında,
+K-15).
