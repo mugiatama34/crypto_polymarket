@@ -531,3 +531,54 @@ hazırlayan ortamın (sandbox) Polymarket'in gerçek ucuna ağ erişimi yok
 GitHub Actions'ta elle tetiklenince üretilecek. Yani Cloudflare/runner-IP
 hipotezi hakkında burada HİÇBİR KARAR verilmiyor — ne doğrulanıyor ne
 reddediliyor, yalnızca onu ayırt edecek ölçüm eklendi.
+
+---
+
+## K-27 — Sessizliğin kaynağı: abonelik zarfında `action` alanı eksikliği
+
+K-25 ve K-26'da açık bırakılan soru (`_handle_message` sessizce mi
+düşürüyor, yoksa RTDS bu bağlantıya hiç çerçeve yollamıyor mu)
+`probe_output/20260909T074807Z`'de (`rtds_cf_diagnosis.py`, sekiz eksen —
+dört abonelik şekli, header'lı/header'sız, 60s pasif dinleme, 5 dakikalık
+üretim-şekilli bağlantı) çözüldü: sekiz koşumun **yalnızca biri**
+(`shape_a1_action_field`) çerçeve aldı. Diğer yedisi — mevcut/üretim
+şekli (`shape_a2_current`, `action` alanı yok), sarmalayıcısız tek
+nesne (`a3`), `subscription` tekil alanlı tek nesne (`a4`),
+Origin/User-Agent header'lı/header'sız varyantlar, 60s pasif dinleme, 5
+dakikalık üretim-şekilli bağlantı — sıfır çerçeve aldı. `cf_signals`
+(`__cf_bm` varlığı, `CF-RAY`) sekiz koşumda da aynı kaldı, yani fark
+Cloudflare/gecikme/Origin-UA'dan gelmiyor; tek değişen eksen abonelik
+zarfının şekli, ve yalnızca `action` alanını içeren şekil veri getirdi:
+
+```
+{"action":"subscribe","subscriptions":[{"topic":...,"type":...}]}
+```
+
+Üretimde kullanılan mevcut şekilde (`a2`) bu `action` alanı yok —
+`RTDSClient`'ın gönderdiği abonelik mesajı sunucu tarafından **sessizce
+yok sayılıyordu**: bağlantı `status_code: 101` ile açılıyor, el sıkışma
+başarılı, `close_code: 1000` ile temiz kapanıyor, hiçbir hata dönmüyor —
+ama sunucu hiç veri göndermiyor çünkü abonelik hiç kabul edilmemiş
+oluyor. K-25'teki `_handle_message`'ın sessiz `return`'leri bu spesifik
+sıfırın nedeni değildi (K-25 zaten bunu ayırmıştı); K-26'nın Cloudflare/
+runner-IP hipotezi de bu koşumun sekiz eksenli karşılaştırmasıyla elendi
+(`cf_signals` sabit, tek değişen abonelik şekliydi). Kök neden, dört tur
+teşhis (K-25 → K-26 → bu koşum) gerektiren, tamamen istemci tarafı bir
+protokol uyumsuzluğuydu.
+
+Ayrıca aynı koşumda: `protocol_frame_received_count` sekiz koşumun
+hepsinde `0` — sunucu gerçek WS protokol seviyesi PING/PONG
+kullanmıyor; K-25/K-26'da benimsenen uygulama seviyesi `"PING"` metin
+çerçevesi yaklaşımı doğru, değiştirilmesine gerek yok.
+
+**Sonuç:** abonelik mesajı `{"action": "subscribe", "subscriptions":
+[...]}` biçiminde, `action` alanı zorunlu olarak gönderilecek şekilde
+düzeltilecek (ayrı bir işte — bu koşum yalnızca teşhis, henüz kod
+değişikliği içermiyor). Veri çerçevesinin şekli de bu koşumda netleşti:
+üst seviyede `payload` (`data`: `{timestamp, value}` dizisi + `symbol`),
+`timestamp` (zarf seviyesi, ms epoch), `topic`, `type` — abone olunca
+gelen ilk çerçeve `type: "subscribe"` ile son ~120 saniyelik geçmişi tek
+seferde push ediyor; sonraki gerçek zamanlı güncellemelerin
+`type: "update"` ile geleceği varsayılıyor ama bu koşumda gözlenmedi
+(pencere 2. çerçeveden sonra kapandı) — doğrulanması ayrı bir ölçüm
+gerektirir.
