@@ -1,0 +1,63 @@
+name: RTDS Cloudflare teshisi (manuel)
+
+# Yalnizca elle tetiklenir. scripts/rtds_cf_diagnosis.py'yi calistirir --
+# rtds_raw_capture.yml'nin ortaya cikardigi sessizligi (frame_received_count:
+# 0, close_code: 1000, handshake'te __cf_bm + CF-RAY) ayiran ikinci tur
+# izolasyon probu: abonelik zarfi sekli, Origin/User-Agent header'lari,
+# 60s pasif dinleme, 5dk baglanti omru (bkz. o script'in docstring'i).
+# probe.yml ve rtds_raw_capture.yml'den AYRIDIR, hicbirini degistirmez.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  rtds_cf_diagnosis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Probu calistir
+        run: python -m scripts.rtds_cf_diagnosis
+
+      - name: Ciktilari yukle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtds-cf-diagnosis-output
+          path: probe_output/
+          retention-days: 14
+
+      - name: probe_output'u commit et ve push'la
+        if: always()
+        run: |
+          set -e
+          if [ ! -d probe_output ] || [ -z "$(ls -A probe_output 2>/dev/null)" ]; then
+            echo "probe_output/ bos veya yok, commit atlanacak."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_output/
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "rtds_cf_diagnosis: $(date -u +%Y-%m-%dT%H:%M:%SZ) calistirmasinin ham ciktisi"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1

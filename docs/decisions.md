@@ -483,3 +483,51 @@ sıkışma ayrıntısını (durum kodu, response header'ları, seçilen
 subprotocol) ve WS kapanma kodu/sebebini kaydeder. Bu ölçüm
 sonuçlanmadan `_handle_message`'ın düzeltmesi de, sıfırın kök nedeni
 hakkında bir karar da verilmez.
+
+---
+
+## K-26 — İkinci tur sessizlik teşhisi: şekil/header/süre eksenleri ayrıştırılıyor, henüz karar yok
+
+`probe_output/20260909T063155Z` (`rtds_raw_capture.py`), K-25'in
+sorusunu doğruladı: 75 saniyelik pencerede `frame_received_count: 0`,
+`ping_sent_count: 10` (uygulama seviyesi "PING" metin çerçevesine hiç
+yanıt yok), `close_code: 1000` (temiz kapanış — bağlantı kesilmiyor,
+sadece hiç veri akmıyor). El sıkışma header'larında Cloudflare
+bot-yönetimi izleri var: `set-cookie: __cf_bm=...`, `CF-RAY:
+...-IAD`. Bu, "bağlantı kabul ediliyor ama veri akışı GitHub Actions
+runner IP'si yüzünden kesiliyor" hipotezini ÇAĞRIŞTIRIYOR ama
+DOĞRULAMIYOR — aynı header'lar meşru/izin verilen bağlantılarda da
+görünebilir, tek başına kanıt değil.
+
+Bu hipotezi tahminle değil ölçümle ayırmak için `scripts/rtds_cf_diagnosis.py`
+eklendi, dört eksen:
+
+- **Abonelik zarfı şekli** — dört varyant (action alanlı, mevcut/üretim
+  şekli, sarmalayıcısız tek nesne, `subscription` tekil alanlı tek
+  nesne), dört ayrı bağlantı. Sunucu yanlış şekle de mi sessiz kalıyor,
+  yoksa doğru şekilde bile mi sessiz — bunu ayırt etmek için.
+- **Origin/User-Agent header'ları** — tarayıcıdan gelmiş gibi görünen
+  bir el sıkışma (`Origin: https://polymarket.com`, temsili bir
+  tarayıcı User-Agent'i) ile header'sız hali aynı koşumda karşılaştırılır.
+- **60 saniyelik pasif dinleme** — abonelik göndermeden, sunucunun
+  kendiliğinden bir şey yollayıp yollamadığı. `rtds_raw_capture.py`'nin
+  faz 1'i (15s) burada 60s'e çıkarıldı. Hem uygulama seviyesi
+  çerçeveler (`.recv()`) hem gerçek WS protokol kontrol çerçeveleri
+  (PING/PONG/CLOSE — `websockets` kütüphanesi bunları `.recv()`'e hiç
+  iletmeden şeffafça yanıtlar) `websockets.protocol` logger'ına DEBUG
+  handler takılarak ayrıca yakalanır.
+- **Bağlantı ömrü** — üretim şekliyle abone olunup 5 dakika (üretim
+  ping kadansıyla) dinlenir; şu ana kadarki en uzun pencere 75s'di,
+  Chainlink TWAP feed'i sakin piyasada seyrek yayınlıyorsa kısa
+  pencereler yanıltıcı "sessizlik" gibi görünebilir.
+
+Her eksen/varyant ayrı dosyaya yazılır, her sonuçta Cloudflare
+işaretleri (`__cf_bm` varlığı, `CF-RAY` değeri) header listesinden
+ayrı, düz bir `cf_signals` alanına da çıkarılır.
+
+**Bu script henüz gerçek RTDS ucuna karşı ÇALIŞTIRILMADI** — bu PR'ı
+hazırlayan ortamın (sandbox) Polymarket'in gerçek ucuna ağ erişimi yok
+(`CONNECT tunnel failed, 403`); gerçek ölçüm `.github/workflows/rtds_cf_diagnosis.yml`
+GitHub Actions'ta elle tetiklenince üretilecek. Yani Cloudflare/runner-IP
+hipotezi hakkında burada HİÇBİR KARAR verilmiyor — ne doğrulanıyor ne
+reddediliyor, yalnızca onu ayırt edecek ölçüm eklendi.
