@@ -1,0 +1,64 @@
+name: RTDS ham yakalama (manuel)
+
+# Yalnizca elle tetiklenir. scripts/rtds_raw_capture.py'yi calistirir --
+# RTDS websocket'ine baglanip HICBIR ayristirma/filtreleme yapmadan
+# gelen her cerceveyi ham string olarak kaydeder (bkz. o script'in
+# docstring'i). probe.yml'den (scripts/probe.py) AYRIDIR: bu, RTDS'in
+# mesaj: [] gorunmesinin sunucu sessizligi mi yoksa onceki problarin
+# kendi filtrelemesi mi oldugunu ayirt etmek icin tek seferlik bir
+# izolasyon denemesi.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  rtds_raw_capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Probu calistir
+        run: python -m scripts.rtds_raw_capture
+
+      - name: Ciktilari yukle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtds-raw-capture-output
+          path: probe_output/
+          retention-days: 14
+
+      - name: probe_output'u commit et ve push'la
+        if: always()
+        run: |
+          set -e
+          if [ ! -d probe_output ] || [ -z "$(ls -A probe_output 2>/dev/null)" ]; then
+            echo "probe_output/ bos veya yok, commit atlanacak."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add probe_output/
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "rtds_raw_capture: $(date -u +%Y-%m-%dT%H:%M:%SZ) calistirmasinin ham ciktisi"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1
