@@ -146,3 +146,15 @@
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976320200, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976385005, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976470030, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976560017, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976620028, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976680186, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976740219, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976860060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976920212, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788976985005, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788977070018, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788977160018, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788977220057, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788977280179, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1e5069c3b980", "event": "tick", "ts": 1788977340235, "rounds_seen": null, "rounds_missed": null, "detail": null}
