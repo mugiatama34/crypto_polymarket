@@ -1,0 +1,86 @@
+{
+  "generated_at_utc": "2026-09-09T11:45:05.585436+00:00",
+  "rounds_seen": 6,
+  "round_status_counts": {
+    "partial": 6
+  },
+  "observation_count_distribution": {
+    "count": 6,
+    "null_count": 0,
+    "min": 24,
+    "median": 24.0,
+    "max": 24,
+    "expected": 24,
+    "rounds_matching_expected": 6
+  },
+  "offset_actual_deviation_sec": {
+    "count": 144,
+    "null_count": 0,
+    "min": -5.007999999999996,
+    "median": -0.0020000000000095497,
+    "max": 0.0
+  },
+  "feed_ts_source_distribution": {
+    "btc_reference": {
+      "ws|polymarket_rtds|point": 72,
+      "rest|coinbase|none": 71,
+      "rest|none|none": 1
+    },
+    "btc_oracle": {
+      "ws|chainlink|point": 72,
+      "rest|none|none": 72
+    }
+  },
+  "staleness_ms_by_transport": {
+    "ws": {
+      "count": 72,
+      "null_count": 0,
+      "min": 3003,
+      "median": 65002.0,
+      "max": 125004
+    },
+    "rest": {
+      "count": 72,
+      "null_count": 72,
+      "min": null,
+      "median": null,
+      "max": null
+    }
+  },
+  "latency_ms_rest_only": {
+    "count": 72,
+    "null_count": 0,
+    "min": 153,
+    "median": 190.0,
+    "max": 10006
+  },
+  "rtds_dropped_frame_totals": {
+    "rtds_dropped_not_json": 0,
+    "rtds_dropped_unknown_symbol": 0,
+    "rtds_dropped_unknown_shape": 0
+  },
+  "rejected_rows": {
+    "count": 0,
+    "error_reason_counts": {}
+  },
+  "heartbeat_gaps": {
+    "overall_max_gap_sec": 119.999,
+    "by_job_id": {
+      "longjob-95f45bf07ede": {
+        "tick_count": 28,
+        "max_gap_sec": 119.999
+      }
+    }
+  },
+  "venue_distribution_rest_only": {
+    "coinbase": 71,
+    "none": 1
+  },
+  "ws_frame_type_distribution": {
+    "rtds_binance|subscribe": 72,
+    "rtds_chainlink|subscribe": 72
+  },
+  "first_complete_round_elapsed_by_job_id": {
+    "longjob-95f45bf07ede": null
+  }
+}

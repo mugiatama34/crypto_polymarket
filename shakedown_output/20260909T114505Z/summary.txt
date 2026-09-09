@@ -1,0 +1,17 @@
+Shakedown saglik raporu -- 2026-09-09T11:45:05.585436+00:00
+
+1. Tur sayisi: 6 -- durum kirilimi: {'partial': 6}
+2. Tur basina gozlem sayisi: count=6 null=0 min=24 medyan=24.0 maks=24 (beklenen 24, tam eslesen 6 tur)
+3. offset_actual_sec sapmasi (sn): count=144 null=0 min=-5.007999999999996 medyan=-0.0020000000000095497 maks=0.0
+4. feed_ts_source dagilimi (btc_reference): {'ws|polymarket_rtds|point': 72, 'rest|coinbase|none': 71, 'rest|none|none': 1}
+   feed_ts_source dagilimi (btc_oracle): {'ws|chainlink|point': 72, 'rest|none|none': 72}
+5. staleness_ms (transport basina):
+   ws: count=72 null=0 min=3003 medyan=65002.0 maks=125004
+   rest: count=72 null=72 (veri yok)
+6. latency_ms (yalnizca rest): count=72 null=0 min=153 medyan=190.0 maks=10006
+7. Dusen RTDS cerceve sayaclari: {'rtds_dropped_not_json': 0, 'rtds_dropped_unknown_symbol': 0, 'rtds_dropped_unknown_shape': 0}
+8. Reddedilen satir sayisi: 0 -- sebepler: {}
+9. Heartbeat bosluklari -- genel en uzun: 119.999 sn, job basina: {'longjob-95f45bf07ede': {'tick_count': 28, 'max_gap_sec': 119.999}}
+10. venue dagilimi (yalnizca rest): {'coinbase': 71, 'none': 1}
+11. WS cerceve type dagilimi (K-28b): {'rtds_binance|subscribe': 72, 'rtds_chainlink|subscribe': 72}
+12. Ilk complete turun job_start'tan elapsed suresi: {'longjob-95f45bf07ede': None}
