@@ -16,6 +16,7 @@ Ucler: bkz. collector/endpoints.py (kaynak notlariyla).
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -23,20 +24,38 @@ import httpx
 from .endpoints import BINANCE_TICKER_URL, COINBASE_TICKER_URL, KRAKEN_TICKER_URL
 
 
-def _parse_binance(raw: dict) -> float:
-    return float(raw["price"])
+def _parse_iso8601_ms(value) -> Optional[int]:
+    """ISO8601 -> epoch ms. Ayristirilamiyorsa (alan yok, beklenmeyen
+    bicim) None -- cagiran feed_ts'i null birakir, satiri dusurmez."""
+    if not isinstance(value, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return int(dt.timestamp() * 1000)
 
 
-def _parse_coinbase(raw: dict) -> float:
-    return float(raw["price"])
+def _parse_binance(raw: dict) -> tuple:
+    # Binance'in ticker/price ucu zaman damgasi dondurmuyor (bkz. K-36).
+    return float(raw["price"]), None
 
 
-def _parse_kraken(raw: dict) -> float:
+def _parse_coinbase(raw: dict) -> tuple:
+    # K-36: yanitin "time" alani ISO8601 -- feed'in kendi bildirdigi zaman
+    # (prob'da gorulen: probe_output/20260908T182954Z/exchange_coinbase.json).
+    return float(raw["price"]), _parse_iso8601_ms(raw.get("time"))
+
+
+def _parse_kraken(raw: dict) -> tuple:
     if raw.get("error"):
         raise ValueError(f"kraken error: {raw['error']}")
     result = raw["result"]
     first_pair = next(iter(result.values()))
-    return float(first_pair["c"][0])
+    # Kraken Ticker ucunda bu quote'un kendi zaman damgasi yok (bkz. K-36).
+    return float(first_pair["c"][0]), None
 
 
 _EXCHANGES: tuple = (
@@ -60,6 +79,7 @@ class ExchangeFetchResult:
     exchange: Optional[str]
     value: Optional[float]
     raw: Optional[dict]
+    feed_ts_ms: Optional[int] = None
     attempts: list = field(default_factory=list)
 
 
@@ -85,7 +105,7 @@ async def probe_exchanges(client: httpx.AsyncClient) -> ExchangeFetchResult:
 
         try:
             raw = response.json()
-            value = parser(raw)
+            value, feed_ts_ms = parser(raw)
         except (ValueError, KeyError, TypeError) as exc:
             attempts.append(
                 ExchangeAttempt(name, ok=False, status_code=response.status_code, error=str(exc))
@@ -93,7 +113,7 @@ async def probe_exchanges(client: httpx.AsyncClient) -> ExchangeFetchResult:
             continue
 
         attempts.append(ExchangeAttempt(name, ok=True, status_code=response.status_code))
-        return ExchangeFetchResult(exchange=name, value=value, raw=raw, attempts=attempts)
+        return ExchangeFetchResult(exchange=name, value=value, raw=raw, feed_ts_ms=feed_ts_ms, attempts=attempts)
 
     return ExchangeFetchResult(exchange=None, value=None, raw=None, attempts=attempts)
 
@@ -110,7 +130,7 @@ async def fetch_price(client: httpx.AsyncClient, exchange: str) -> ExchangeFetch
         response = await client.get(url)
         response.raise_for_status()
         raw = response.json()
-        value = parser(raw)
+        value, feed_ts_ms = parser(raw)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
         return ExchangeFetchResult(
             exchange=exchange,
@@ -122,5 +142,6 @@ async def fetch_price(client: httpx.AsyncClient, exchange: str) -> ExchangeFetch
         exchange=exchange,
         value=value,
         raw=raw,
+        feed_ts_ms=feed_ts_ms,
         attempts=[ExchangeAttempt(exchange, ok=True, status_code=response.status_code)],
     )

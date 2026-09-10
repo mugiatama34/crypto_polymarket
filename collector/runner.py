@@ -189,7 +189,10 @@ class LongjobRunner:
             status = "partial"
 
         return {
-            "schema_version": 1,
+            # K-36: btc_reference.feed_ts_source'a "venue_rest" eklendi --
+            # eski v1 veri (2026-09-09 shakedown kosumlari) donusturulmedi,
+            # yeni yazilan her satir v2 (bkz. docs/decisions.md K-14/K-36).
+            "schema_version": 2,
             "runner_id": self.runner_id,
             "job_id": self.job_id,
             "data_lane": "forward_paper",

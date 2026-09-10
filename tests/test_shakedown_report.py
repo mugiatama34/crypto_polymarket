@@ -172,6 +172,28 @@ def test_build_summary_computes_expected_sections(tmp_path, monkeypatch):
     assert first_complete["elapsed_sec"] == 0.7
 
 
+def test_build_summary_reports_schema_version_breakdown(tmp_path):
+    """K-36: v1 -> v2 gecisinde iki surum ayni akista yan yana olabilir --
+    ozet bunlari sessizce birlestirmek yerine ayri sayar."""
+    raw_dir = tmp_path / "raw"
+    coverage_dir = tmp_path / "coverage"
+    rejected_dir = tmp_path / "rejected"
+
+    rounds = [
+        {"job_id": "job1", "round_id": "r1", "open_ts": 1000, "close_ts": 2000, "status": "complete",
+         "schema_version": 1, "observations": [], "raw": []},
+        {"job_id": "job1", "round_id": "r2", "open_ts": 2000, "close_ts": 2500, "status": "complete",
+         "schema_version": 2, "observations": [], "raw": []},
+        {"job_id": "job1", "round_id": "r3", "open_ts": 2500, "close_ts": 3000, "status": "complete",
+         "schema_version": 2, "observations": [], "raw": []},
+    ]
+    _write_jsonl(raw_dir / "runner=longjob" / "date=2026-01-01" / "rounds.jsonl", rounds)
+
+    summary = build_summary(raw_dir=raw_dir, coverage_dir=coverage_dir, rejected_dir=rejected_dir)
+
+    assert summary["schema_version_counts"] == {"2": 2, "1": 1}
+
+
 def test_main_writes_summary_files(tmp_path):
     dirs = _setup_fixtures(tmp_path)
     out_dir = tmp_path / "out"

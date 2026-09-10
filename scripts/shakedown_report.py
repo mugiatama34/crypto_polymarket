@@ -136,6 +136,11 @@ def _compute_core_metrics(rounds: list) -> dict:
     topluyordu."""
     # 1. tur sayisi, status kirilimi + K-35: complete turlarin timing_valid kirilimi
     round_status_counts = Counter(r.get("status") for r in rounds)
+    # K-36: schema_version v1 -> v2 gecisi (btc_reference.feed_ts_source'a
+    # "venue_rest" eklendi) sirasinda iki surum ayni akista yan yana
+    # yasayabilir -- hangi koşumun hangi surumde oldugu burada sessizce
+    # karismasin diye ayri sayiliyor.
+    schema_version_counts = Counter(r.get("schema_version") for r in rounds)
     complete_timing_valid_counts = Counter(
         r.get("timing_valid") for r in rounds if r.get("status") == "complete"
     )
@@ -192,6 +197,7 @@ def _compute_core_metrics(rounds: list) -> dict:
     return {
         "rounds_seen": len(rounds),
         "round_status_counts": dict(round_status_counts),
+        "schema_version_counts": _counter_to_dict(schema_version_counts),
         "complete_timing_valid_counts": _counter_to_dict(complete_timing_valid_counts),
         "observation_count_distribution": observation_count_dist,
         "offset_actual_deviation_sec": _dist(offset_deviations),
@@ -346,7 +352,8 @@ def render_text(summary: dict) -> str:
         f"Kapsam: job_id={summary['scope']['job_id']} since_ms={summary['scope']['since_ms']}",
         "",
         f"1. Tur sayisi: {summary['rounds_seen']} -- durum kirilimi: {summary['round_status_counts']} "
-        f"-- complete turlarin timing_valid kirilimi: {summary['complete_timing_valid_counts']}",
+        f"-- complete turlarin timing_valid kirilimi: {summary['complete_timing_valid_counts']} "
+        f"-- schema_version kirilimi (K-36): {summary['schema_version_counts']}",
         f"2. Tur basina gozlem sayisi: {_format_dist(summary['observation_count_distribution'])} "
         f"(beklenen {summary['observation_count_distribution']['expected']}, "
         f"tam eslesen {summary['observation_count_distribution']['rounds_matching_expected']} tur)",

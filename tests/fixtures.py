@@ -1,7 +1,7 @@
 """Uc kayit tipi icin gecerli ornek kayitlar. Testler bunlari deepcopy'leyip bozar."""
 
 VALID_ROUND = {
-    "schema_version": 1,
+    "schema_version": 2,
     "runner_id": "longjob",
     "job_id": "job-abc123",
     "data_lane": "forward_paper",

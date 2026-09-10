@@ -963,3 +963,68 @@ ilgili `offset_sec`'ten `TIMING_VALID_TOLERANCE_SEC` (30 sn) içindeyse
 `shakedown_report`, "complete" turları `timing_valid` kırılımıyla da
 gösterir ki bu iki bulgu (K-34 örneğindeki gibi) rapor seviyesinde
 gizlenmesin.
+
+---
+
+## K-36 — REST bacağında `btc_reference.feed_ts` her zaman null yazılıyordu; Coinbase'in kendi zaman alanı okunmuyordu (şema v2)
+
+Üretim toplama moduna geçiş öncesi küçük bir kontrol istendi:
+`btc_reference.feed_ts` REST bacağında neden hep `null`. Kök neden
+`collector/sampler.py.build_rest_observation`'da: borsa cevabı
+başarıyla ayrıştırıldığında `btc_reference` sözlüğü `feed_ts`'i kod
+seviyesinde sabit `None` yazıyordu — hangi borsa seçilmiş olursa olsun
+(K-19), gelen yanıtın kendi zaman alanına hiç bakılmıyordu.
+
+`probe_output/20260908T182954Z/exchange_coinbase.json`'da (K-24'ten
+önceki bir prob koşumu, borsa uçları için) Coinbase'in
+`GET /products/BTC-USD/ticker` yanıtında `"time":
+"2026-09-08T18:29:53.773177744Z"` alanı görüldü — feed'in kendi
+bildirdiği zaman, ISO8601, nanosaniye hassasiyetinde. Aynı prob
+koşumunda Kraken (`exchange_kraken.json`) ve Binance
+(`exchange_binance.json`, zaten 451 ile engelli) yanıtlarında bu quote'a
+ait böyle bir alan yok — Kraken'in `Ticker` ucu `t` (bugünün trade
+sayısı) döndürüyor, quote'un kendi zaman damgasını değil.
+
+**Sonuç:** `collector/exchange_probe.py`'deki üç borsa parser'ı artık
+`(value, feed_ts_ms)` çifti döndürüyor — yalnızca Coinbase'inki
+(`_parse_coinbase`) `time` alanını `_parse_iso8601_ms` ile epoch ms'e
+çevirip dolduruyor, Kraken/Binance her zaman `None` döndürüyor (uydurma
+yok — alan yoksa `null` kalır, K-06 ruhu). `ExchangeFetchResult`'a
+`feed_ts_ms` alanı eklendi, `sampler.build_rest_observation` bunu
+`btc_reference.feed_ts`'e taşıyor.
+
+Bu, doğrudan şemaya çarptı: `feed_ts_source` enum'u yalnızca `point`
+(K-29'da tanımlı — RTDS'in `payload.data[]` nokta-bazlı zaman damgası,
+yalnızca `ws` bacağı) ve `none` içeriyordu. Coinbase'in REST yanıtındaki
+kendi zaman alanı bu ikisinden hiçbiri değil — `point`'i buraya da
+kullanmak K-29'un tanımını (WS'e özgü) bozardı. CLAUDE.md'nin "şemaya
+aykırı bir ihtiyaç doğarsa kodu şemaya uydurma, şemayı tartışmaya aç"
+kuralı gereği kullanıcıya soruldu; **şemayı genişletme** seçildi:
+`feed_ts_source` enum'una üçüncü bir değer eklendi: `venue_rest`
+(REST bacağında, borsanın kendi yanıt alanından). `point` ile
+`venue_rest` ayrı tutuluyor çünkü farklı mekanizmalar — biri WS'in
+push ettiği nokta dökümü, diğeri REST yanıtının kendi alanı; ileride
+ikisi arasında bir kalite/gecikme farkı gözlenirse ayırt edilebilsin
+diye karıştırılmadı (K-09/K-20'deki "ayrı ayrı kaydedilir" ilkesiyle
+aynı gerekçe).
+
+`data/raw/runner=longjob/date=2026-09-09/rounds.jsonl` içinde bu
+değişiklikten önce yazılmış 106 satır gerçek `schema_version: 1` verisi
+zaten vardı (üç shakedown koşumu) — yani bu artık "henüz veri
+toplanmadı" (K-14'ün önceki varsayımı) durumu değil. CLAUDE.md
+değişmez kural 3 gereği (`schema_version` artışı, eski veri
+dönüştürülmez) `schemas/round.schema.json`'da `schema_version` `2`'ye
+çıkarıldı, `collector/runner.py._run_round` artık `2` yazıyor. Var olan
+106 v1 satırı dokunulmadan kaldı (K-11 — ham veri değiştirilmez); yeni
+yazılan her satır v2. `outcome`/`heartbeat` şemaları bu PR'da
+değişmedi, `schema_version: 1`'de kaldı — üç kayıt tipinin sürümü
+bağımsız artar (bkz. SCHEMA.md güncellemesi).
+
+`scripts/shakedown_report.py`'ye `schema_version` kırılımı eklendi
+(`_compute_core_metrics`) — v1/v2 satırları tek özette sessizce
+karışmasın, hangi koşumun hangi şemada olduğu görünür kalsın (K-34/K-35
+rapor bulgusundaki job_id izolasyonuyla aynı gerekçe).
+
+**Bilinçli olarak kapsam dışı bırakılan:** Kraken/Binance için
+alternatif bir zaman kaynağı aranmadı (yok, uydurulmaz). `btc_oracle`
+REST bacağı hâlâ dokunulmadı (K-19'daki bilinen boşluk, ayrı iş).

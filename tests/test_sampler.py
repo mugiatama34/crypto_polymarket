@@ -36,7 +36,7 @@ def _full_book_side():
 
 def _wrap_round(observation):
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "runner_id": "longjob",
         "job_id": "job-test",
         "data_lane": "forward_paper",
@@ -320,6 +320,51 @@ async def test_build_rest_observation_no_exchange_available():
         "feed_ts": None,
         "feed_ts_source": "none",
     }
+
+
+@pytest.mark.asyncio
+async def test_build_rest_observation_coinbase_populates_feed_ts_and_staleness():
+    """K-36: Coinbase yanitindaki "time" alani artik feed_ts'e taniniyor --
+    staleness_ms de (response_ts - feed_ts) bu sayede hesaplanabiliyor,
+    onceden REST bacaginda her zaman None donuyordu."""
+    import datetime as dt_module
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "token_id" in url:
+            return httpx.Response(
+                200,
+                json={"timestamp": "1717000061000", "bids": [{"price": "0.48", "size": "10"}], "asks": [{"price": "0.52", "size": "8"}]},
+            )
+        if "coinbase" in url:
+            return httpx.Response(
+                200,
+                json={"price": "67005.0", "bid": "67004", "ask": "67006", "time": "2024-05-30T00:01:00.500000Z"},
+            )
+        raise AssertionError(f"unexpected url {url}")
+
+    transport = httpx.MockTransport(handler)
+    now = _clock([1, 1, 2])
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        observation, _ = await build_rest_observation(
+            offset_sec=30,
+            close_ts_ms=CLOSE_TS_MS,
+            token_ids=TOKEN_IDS,
+            http_client=client,
+            exchange="coinbase",
+            now_ms_fn=now,
+        )
+
+    expected_feed_ts = int(
+        dt_module.datetime(2024, 5, 30, 0, 1, 0, 500000, tzinfo=dt_module.timezone.utc).timestamp() * 1000
+    )
+    assert observation["btc_reference"]["feed_ts"] == expected_feed_ts
+    assert observation["btc_reference"]["feed_ts_source"] == "venue_rest"
+    assert observation["staleness_ms"] == observation["response_ts"] - expected_feed_ts
+
+    ok, errors = validate(_wrap_round(observation), "round")
+    assert ok, errors
 
 
 @pytest.mark.asyncio

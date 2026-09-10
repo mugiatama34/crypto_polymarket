@@ -117,3 +117,63 @@ async def test_fetch_price_failure_returns_none_value_not_exception():
 
     assert result.value is None
     assert result.attempts[0].ok is False
+
+
+@pytest.mark.asyncio
+async def test_probe_exchanges_coinbase_extracts_feed_ts_ms():
+    """K-36: Coinbase'in "time" alani (ISO8601, prob'da gorulen bicim)
+    feed_ts_ms'e (epoch ms) cevriliyor."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "price": "67000.50",
+                "bid": "67000",
+                "ask": "67001",
+                "time": "2026-09-08T18:29:53.773177744Z",
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await probe_exchanges(client)
+
+    assert result.exchange == "coinbase"
+    assert result.feed_ts_ms == 1788892193773
+
+
+@pytest.mark.asyncio
+async def test_probe_exchanges_coinbase_missing_time_field_leaves_feed_ts_none():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"price": "67000.50", "bid": "67000", "ask": "67001"})
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await probe_exchanges(client)
+
+    assert result.exchange == "coinbase"
+    assert result.feed_ts_ms is None
+
+
+@pytest.mark.asyncio
+async def test_probe_exchanges_kraken_has_no_feed_ts():
+    """K-36: Kraken'in Ticker ucunda quote'un kendi zaman damgasi yok --
+    ("t" alani trade sayisi, zaman degil) feed_ts_ms hep None kalir."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "coinbase" in str(request.url):
+            return httpx.Response(451, text="restricted location")
+        if "kraken" in str(request.url):
+            return httpx.Response(
+                200,
+                json={"error": [], "result": {"XXBTZUSD": {"c": ["67010.25", "0.5"]}}},
+            )
+        raise AssertionError("binance should not be reached")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await probe_exchanges(client)
+
+    assert result.exchange == "kraken"
+    assert result.feed_ts_ms is None
