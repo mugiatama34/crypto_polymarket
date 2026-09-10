@@ -115,16 +115,28 @@ def _select_latest_job_id(rounds: list, heartbeats: list) -> Optional[str]:
     return None
 
 
-def _filter_by_scope(records: list, *, job_id: Optional[str], since_ms: Optional[int], ts_field: str) -> list:
-    """`job_id`/`since_ms` ile daraltir. Bir kaydin `job_id`/`ts_field`
-    alani eksikse (attribution bilinmiyor) FILTRELENMEZ -- bilinmeyeni
-    sessizce disarida birakmak CLAUDE.md kural 4'un ruhuna aykiri
-    (bkz. docs/decisions.md K-34/K-35 rapor bulgusu)."""
+def _filter_by_scope(
+    records: list,
+    *,
+    job_id: Optional[str],
+    since_ms: Optional[int],
+    until_ms: Optional[int] = None,
+    ts_field: str,
+) -> list:
+    """`job_id`/`since_ms`/`until_ms` ile daraltir. Bir kaydin `job_id`/
+    `ts_field` alani eksikse (attribution bilinmiyor) FILTRELENMEZ --
+    bilinmeyeni sessizce disarida birakmak CLAUDE.md kural 4'un ruhuna
+    aykiri (bkz. docs/decisions.md K-34/K-35 rapor bulgusu). `until_ms`
+    ust sinir HARIC (`< until_ms`) -- gunluk saglik raporunda (K-37)
+    "onceki tam UTC gunu" [since, until) araligini kapali tutmak icin.
+    """
     out = records
     if job_id is not None:
         out = [r for r in out if r.get("job_id") is None or r.get("job_id") == job_id]
     if since_ms is not None:
         out = [r for r in out if r.get(ts_field) is None or r.get(ts_field) >= since_ms]
+    if until_ms is not None:
+        out = [r for r in out if r.get(ts_field) is None or r.get(ts_field) < until_ms]
     return out
 
 
@@ -218,6 +230,7 @@ def build_summary(
     rejected_dir: Path,
     job_id: Optional[str] = None,
     since_ms: Optional[int] = None,
+    until_ms: Optional[int] = None,
 ) -> dict:
     all_rounds = list(_iter_jsonl(raw_dir, "rounds.jsonl"))
     all_heartbeats = list(_iter_jsonl(coverage_dir, "heartbeat.jsonl"))
@@ -229,9 +242,9 @@ def build_summary(
     if selected_job_id is None and since_ms is None:
         selected_job_id = _select_latest_job_id(all_rounds, all_heartbeats)
 
-    rounds = _filter_by_scope(all_rounds, job_id=selected_job_id, since_ms=since_ms, ts_field="open_ts")
-    heartbeats = _filter_by_scope(all_heartbeats, job_id=selected_job_id, since_ms=since_ms, ts_field="ts")
-    rejected = _filter_by_scope(all_rejected, job_id=selected_job_id, since_ms=since_ms, ts_field="ts")
+    rounds = _filter_by_scope(all_rounds, job_id=selected_job_id, since_ms=since_ms, until_ms=until_ms, ts_field="open_ts")
+    heartbeats = _filter_by_scope(all_heartbeats, job_id=selected_job_id, since_ms=since_ms, until_ms=until_ms, ts_field="ts")
+    rejected = _filter_by_scope(all_rejected, job_id=selected_job_id, since_ms=since_ms, until_ms=until_ms, ts_field="ts")
 
     core = _compute_core_metrics(rounds)
 
@@ -327,7 +340,7 @@ def build_summary(
 
     return {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "scope": {"job_id": selected_job_id, "since_ms": since_ms},
+        "scope": {"job_id": selected_job_id, "since_ms": since_ms, "until_ms": until_ms},
         **core,
         "rtds_dropped_frame_totals": rtds_dropped_frame_totals,
         "clob_ws_dropped_frame_totals": clob_ws_dropped_frame_totals,
@@ -349,7 +362,8 @@ def _format_dist(d: dict) -> str:
 def render_text(summary: dict) -> str:
     lines = [
         f"Shakedown saglik raporu -- {summary['generated_at_utc']}",
-        f"Kapsam: job_id={summary['scope']['job_id']} since_ms={summary['scope']['since_ms']}",
+        f"Kapsam: job_id={summary['scope']['job_id']} since_ms={summary['scope']['since_ms']} "
+        f"until_ms={summary['scope'].get('until_ms')}",
         "",
         f"1. Tur sayisi: {summary['rounds_seen']} -- durum kirilimi: {summary['round_status_counts']} "
         f"-- complete turlarin timing_valid kirilimi: {summary['complete_timing_valid_counts']} "
@@ -420,6 +434,15 @@ def main(argv=None) -> None:
         default=None,
         help="Yalnizca bu ISO8601 UTC zamandan (ör. 2026-09-09T17:00:00Z) sonraki kayitlari kullan",
     )
+    parser.add_argument(
+        "--until",
+        type=str,
+        default=None,
+        help=(
+            "Yalnizca bu ISO8601 UTC zamandan ONCEKI kayitlari kullan (ust sinir haric, "
+            "K-37) -- ör. gunluk saglik raporunda [dun 00:00Z, bugun 00:00Z) araligi icin"
+        ),
+    )
     args = parser.parse_args(argv)
 
     summary = build_summary(
@@ -428,6 +451,7 @@ def main(argv=None) -> None:
         rejected_dir=args.rejected_dir,
         job_id=args.job_id,
         since_ms=_parse_since(args.since),
+        until_ms=_parse_since(args.until),
     )
     text = render_text(summary)
 

@@ -1,0 +1,75 @@
+name: Longjob uretim kosumu
+
+# Zamanlanmis uretim workflow'u -- her 6 saatte bir tetiklenir (00/06/12/18
+# UTC). `python -m collector.main`'i LONGJOB_DURATION_SEC VERMEDEN calistirir,
+# yani LongjobRunner kendi varsayilanini (6 saat, DEFAULT_JOB_DURATION_SEC)
+# kullanir (bkz. docs/decisions.md K-37). Ardisik kosumlar state/longjob.json
+# uzerinden devam eder; restart sonrasi backlog cok genisse atlanir, sessiz
+# kalmaz (K-34).
+#
+# workflow_dispatch: sorun cikarsa cron'u beklemeden elle tetiklemek icin --
+# giris parametresi yok, uretim kosumu her zaman ayni sekilde calisir.
+#
+# `longjob_shakedown.yml`'nin (elle tetiklenen, kisa test kosumu) uretim
+# karsiligidir -- oradan farkli olarak sure girisi/donusumu yok (K-31'in
+# aritmetik kisitiyla ilgisi kalmadi, cunku hic hesap yapilmiyor) ve
+# shakedown_report burada CALISMAZ (ayri, gunluk bir workflow --
+# daily_health.yml, bkz. K-37).
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  longjob:
+    runs-on: ubuntu-latest
+    # Sabit emniyet agi -- gercek sure siniri runner icinde LongjobRunner'in
+    # kendi varsayilaniyla (6 saat) yonetiliyor. ${{ }} icinde aritmetik yok
+    # (K-31).
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Git kimligini ayarla
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Toplayiciyi calistir
+        env:
+          LONGJOB_GIT_PUSH: "1"
+        run: python -m collector.main
+
+      # K-30/K-37: LongjobRunner._maybe_commit kendi ~15 dakikalik ara
+      # commit'lerine data/rejected/'i hic almiyor (bilinen acik, K-30) --
+      # bu adim longjob_shakedown.yml'deki ayni yamayla is sonunda onu da
+      # commit'e alarak bu boslugu workflow seviyesinde kapatir.
+      - name: Ciktilari commit et ve push'la
+        if: always()
+        run: |
+          set -e
+          git add data/raw data/coverage data/rejected
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "longjob: $(date -u +%Y-%m-%dT%H:%M:%SZ) kosumunun son ciktisi"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1

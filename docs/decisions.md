@@ -782,6 +782,19 @@ yalnızca bulgu ve kök neden kaydediliyor (CLAUDE.md "bir seferde tek
 bileşen" — bu bir toplayıcı davranış değişikliği, şu anki iş yalnızca
 workflow + rapor script'i).
 
+**Güncelleme (K-37):** üretim `longjob.yml` de `longjob_shakedown.yml`
+ile aynı workflow-seviyesi yamayı taşıyor (`data/rejected/`'ı son
+adımda ayrıca commit etme). Bu, bu maddedeki açığı artık üretimde de
+KAPATIYOR — ama yalnızca workflow her zaman sonuna kadar çalışıp bu
+adıma ulaştığı sürece; runner çökerse (crash, Actions timeout) `if:
+always()` bu adımı yine de çalıştırır ama o ana kadar sadece yerel
+diskte biriken satırlar için hâlâ hiçbir koruma yok (`_maybe_commit`'in
+kendi ~15 dakikalık ara commit'leri `rejected_base_dir`'i hâlâ
+görmüyor). Yani workflow yaması runner'ın kendi açığını **maskeliyor**,
+düzeltmiyor: yama olmadan üretimde de aynı sorun çıkardı, yama olduğu
+için görünmüyor ama kök neden (`_maybe_commit`) hâlâ dokunulmamış.
+Düzeltme hâlâ ayrı, açık bir iş.
+
 ---
 
 ## K-31 — GitHub Actions `${{ }}` ifade dili aritmetik operatör desteklemiyor
@@ -1028,3 +1041,72 @@ rapor bulgusundaki job_id izolasyonuyla aynı gerekçe).
 **Bilinçli olarak kapsam dışı bırakılan:** Kraken/Binance için
 alternatif bir zaman kaynağı aranmadı (yok, uydurulmaz). `btc_oracle`
 REST bacağı hâlâ dokunulmadı (K-19'daki bilinen boşluk, ayrı iş).
+
+---
+
+## K-37 — üretime geçiş: iki zamanlanmış workflow (`longjob`, günlük sağlık raporu), `shakedown_report`'a `--until`
+
+K-36 (şema v2) sonrası üretim toplama moduna geçiş için iki workflow
+eklendi. Karar mantığı, `cron` runner'ı ve uzlaştırıcı hâlâ kapsam
+dışı (CLAUDE.md) — bu PR yalnızca zamanlama/orkestrasyon, `collector/`
+içine dokunmuyor (`runner.py`'ye K-36'daki şema sürümü dışında bir
+değişiklik yok).
+
+**`.github/workflows/longjob.yml`** — `longjob_shakedown.yml`'nin
+(elle tetiklenen, kısa test koşumu) üretim karşılığı:
+
+- Tetikleyici `schedule` (`0 */6 * * *`, UTC — 00/06/12/18) +
+  `workflow_dispatch` (sorun çıkarsa cron'u beklemeden elle tetiklemek
+  için, giriş parametresi yok). `timeout-minutes: 360` sabit — K-31
+  gereği `${{ }}` içinde aritmetik yok, gerçek süre sınırı runner
+  içinde `LongjobRunner`'ın kendi varsayılanıyla (6 saat) yönetiliyor;
+  `LONGJOB_DURATION_SEC` bilinçli olarak HİÇ verilmiyor.
+- Ardışık koşumlar `state/longjob.json` üzerinden devam eder (mevcut
+  `LongjobRunner.run()` davranışı, değişmedi); restart sonrası backlog
+  `STALE_BACKLOG_ROUNDS`'ın üzerindeyse atlanır ve kaydedilir (K-34,
+  değişmedi).
+- Son adım `data/raw`, `data/coverage`, `data/rejected`'ı commit edip
+  push'luyor (`longjob_shakedown.yml`'deki desenin aynısı — pull
+  --rebase + 3 deneme). **Bu, K-30'un işaret ettiği boşluğu
+  (`LongjobRunner._maybe_commit`'in `rejected_base_dir`'i kendi 15
+  dakikalık/kapanış commit'lerine hiç almaması) yalnızca workflow
+  seviyesinde kapatıyor** — `longjob_shakedown.yml`'de olduğu gibi.
+  K-30'un kendi düzeltmesi (runner'ın kendi commit listesine
+  `rejected_base_dir` eklenmesi) hâlâ ayrı, açık bir iş; bu yama artık
+  üretimde de var olduğu için runner'ın kendi açığını maskeliyor —
+  workflow her zaman devrede olduğu sürece sorun görünmez, ama runner
+  tek başına (workflow dışı, ör. yerel bir koşum) hâlâ K-30'daki gibi
+  davranır. Artifact upload YOK — üretimde veri zaten git'e commit
+  ediliyor, artifact tekrar (redundant), her 6 saatte bir depolama
+  gereksiz büyür (`longjob_shakedown.yml`'deki artifact adımı yalnızca
+  elle tetiklenen tanı koşumları için anlamlıydı, o günlük 4 kez
+  tekrarlanmıyordu).
+
+**`.github/workflows/daily_health.yml`** — `scripts/shakedown_report.py`'yi
+üretimde de çalıştırır, ama ayrı ve günlük:
+
+- Her gün 00:20 UTC'de çalışır (18:00 UTC'de başlayan son `longjob`
+  koşumunun `shutdown_margin_sec` ile ~23:58 UTC'de bitip commit'inin
+  push'lanması için yeterli tampon).
+- Kapsam **önceki tam UTC günü** — kayan pencere değil: her koşum tam,
+  kapanmış bir günü özetler, raporlar günler arası karşılaştırılabilir
+  kalır. Bunu ifade etmek `shakedown_report.py`'nin önceden yalnızca
+  alt sınırı olan (`--since`) taramasına yetmiyordu — üst sınır yoktu,
+  yani "dün" istense bile bugünün o ana kadarki kısmi verisi de dahil
+  olurdu. **`--until` eklendi** (`build_summary`/`_filter_by_scope`,
+  üst sınır HARİÇ: `< until_ms`) — `[dün 00:00Z, bugün 00:00Z)`
+  aralığını kapalı tutmak için. `_filter_by_scope`'un eksik alanı
+  filtrelememe kuralı (K-34/K-35) `until_ms` için de aynen geçerli.
+- Gün sınırı (hangi tarih "dün") bash'te `date -u -d "yesterday" ...`
+  ile hesaplanıyor, `${{ }}` ifadesinde değil (K-31'in genel kuralı:
+  hesap gerekiyorsa bash step'i).
+- Çıktı `daily_health/<YYYY-MM-DD>/` altına (`<gün özetlenen tarih>`)
+  — `shakedown_output/` ile karışmaz, ayrı bir dizin (script'in kendi
+  `--out-dir` altına zaten koyduğu çalışma-zamanı damgalı alt klasör
+  değişmedi, yalnızca üst dizin farklı).
+- `pip install` adımı yok — `scripts/shakedown_report.py` yalnızca
+  stdlib kullanıyor (`argparse`, `json`, `statistics`, vb.), bağımlılık
+  gerekmiyor.
+
+`schema_version_counts` (K-36) sayesinde bu günlük rapor, gün içinde
+v1→v2 geçişi olsa bile hangi payın hangi şemada olduğunu gösterir.
