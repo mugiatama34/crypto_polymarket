@@ -160,6 +160,35 @@ def test_null_feed_ts_with_feed_ts_source_point_is_rejected():
     assert ok is False
 
 
+def test_venue_rest_feed_ts_source_is_valid():
+    """K-36: REST bacaginda borsanin kendi zaman alanindan (ör. Coinbase
+    "time") gelen feed_ts icin feed_ts_source "venue_rest" gecerli."""
+    record = copy.deepcopy(VALID_ROUND)
+    _obs(record)["btc_reference"] = {
+        "value": 67000.0,
+        "source": "rest_poll",
+        "venue": "coinbase",
+        "feed_ts": 1717000060000,
+        "feed_ts_source": "venue_rest",
+    }
+    ok, errors = validate(record, "round")
+    assert ok is True
+    assert errors == []
+
+
+def test_null_feed_ts_with_feed_ts_source_venue_rest_is_rejected():
+    record = copy.deepcopy(VALID_ROUND)
+    _obs(record)["btc_reference"] = {
+        "value": 67000.0,
+        "source": "rest_poll",
+        "venue": "coinbase",
+        "feed_ts": None,
+        "feed_ts_source": "venue_rest",
+    }
+    ok, errors = validate(record, "round")
+    assert ok is False
+
+
 def test_nonnull_feed_ts_with_feed_ts_source_none_is_rejected():
     record = copy.deepcopy(VALID_ROUND)
     _obs(record)["btc_reference"] = {

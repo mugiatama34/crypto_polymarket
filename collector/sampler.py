@@ -168,9 +168,11 @@ async def build_rest_observation(
     now_ms_fn: Optional[Callable[[], int]] = None,
 ) -> tuple:
     """Gercek REST cagrilariyla gozlem. `latency_ms` burada gercek ag
-    turu (K-20). `staleness_ms`, btc_reference.feed_ts REST'te genellikle
-    donmedigi icin (K-10) fiilen hep null cikar -- bu kod bunu varsaymaz,
-    feed_ts bir gun dolarsa otomatik calisir.
+    turu (K-20). `staleness_ms`, btc_reference.feed_ts'e bagli: Coinbase
+    venue'sunde yanitin kendi "time" alanindan doluyor (bkz. K-36),
+    Kraken/Binance'te boyle bir alan yok, feed_ts null kalir ve
+    staleness_ms de null cikar -- bu kod hicbirini varsaymaz, borsa
+    degisirse otomatik calisir.
 
     `btc_oracle` bu bacakta her zaman null/"none" yazilir -- Chainlink
     icin genel-amacli, kimlik dogrulamasiz bir REST/on-chain esdegeri bu
@@ -241,8 +243,8 @@ async def build_rest_observation(
             "value": exch_result.value,
             "source": "rest_poll",
             "venue": exch_result.exchange,
-            "feed_ts": None,
-            "feed_ts_source": "none",
+            "feed_ts": exch_result.feed_ts_ms,
+            "feed_ts_source": "venue_rest" if exch_result.feed_ts_ms is not None else "none",
         }
         raw_entries.append({"endpoint": f"{exch_result.exchange}_ticker", "payload": exch_result.raw})
         successes += 1

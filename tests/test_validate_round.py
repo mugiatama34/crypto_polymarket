@@ -36,7 +36,19 @@ def test_unknown_field_fails():
 
 def test_wrong_schema_version_fails():
     record = copy.deepcopy(VALID_ROUND)
-    record["schema_version"] = 2
+    record["schema_version"] = 3
+    ok, errors = validate(record, "round")
+    assert ok is False
+    assert any("schema_version" in e for e in errors)
+
+
+def test_old_v1_schema_version_fails():
+    """K-36: schema v1 -> v2 gecisinde eski surum donusturulmuyor (K-14) --
+    v1 olarak yazilmis bir satir artik v2 dogrulayicidan gecmez, bu
+    kasitli (analiz katmani her iki surumu de job_id/schema_version'a
+    bakarak ayri ayri okur, veri degistirilmez)."""
+    record = copy.deepcopy(VALID_ROUND)
+    record["schema_version"] = 1
     ok, errors = validate(record, "round")
     assert ok is False
     assert any("schema_version" in e for e in errors)

@@ -1,0 +1,79 @@
+name: Gunluk saglik raporu
+
+# scripts/shakedown_report.py'yi uretimde GUNLUK calistirir -- longjob.yml'in
+# kendisinden ayri (bkz. docs/decisions.md K-37). Her gun 00:20 UTC'de
+# tetiklenir; bu saat 18:00 UTC'de baslayan son longjob kosumunun (~5s58d
+# surer, shutdown_margin_sec) bitip son commit'ini push'lamasi icin tampon
+# birakir.
+#
+# Kapsam ONCEKI TAM UTC GUNU -- kayan pencere degil: her kosum tam, kapanmis
+# bir gunu ozetler, raporlar gunler arasi karsilastirilabilir kalir. Bunun
+# icin scripts/shakedown_report.py'ye --until eklendi (K-37) -- [dun 00:00Z,
+# bugun 00:00Z) araligi. Gun sinirinin hesabi bash'te yapilir, ${{ }} icinde
+# aritmetik/tarih hesaplama YOK (K-31'in genel kurali).
+#
+# Cikti data/'ya degil daily_health/<ozetlenen-tarih>/ altina yazilir --
+# shakedown_output/ (elle tetiklenen kisa test kosumlarinin ciktisi) ile
+# karismaz. HICBIR SEY data/ altina yazilmaz (shakedown_report salt-okunur,
+# bkz. scripts/shakedown_report.py docstring'i) -- yalnizca daily_health/
+# commit edilir.
+on:
+  schedule:
+    - cron: "20 0 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  daily-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # pip install YOK -- scripts/shakedown_report.py yalnizca stdlib
+      # kullaniyor (argparse, json, statistics, ...), bagimlilik gerekmiyor.
+
+      - name: Git kimligini ayarla
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Kapsanan gunu hesapla (onceki tam UTC gunu)
+        id: scope
+        run: |
+          yesterday_date="$(date -u -d 'yesterday' +%Y-%m-%d)"
+          today_date="$(date -u +%Y-%m-%d)"
+          echo "date=${yesterday_date}" >> "$GITHUB_OUTPUT"
+          echo "since=${yesterday_date}T00:00:00Z" >> "$GITHUB_OUTPUT"
+          echo "until=${today_date}T00:00:00Z" >> "$GITHUB_OUTPUT"
+
+      - name: Gunluk saglik raporunu uret
+        run: |
+          python -m scripts.shakedown_report \
+            --since "${{ steps.scope.outputs.since }}" \
+            --until "${{ steps.scope.outputs.until }}" \
+            --out-dir "daily_health/${{ steps.scope.outputs.date }}"
+
+      - name: Ciktiyi commit et ve push'la
+        run: |
+          set -e
+          git add daily_health
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "daily_health: ${{ steps.scope.outputs.date }} gunu saglik ozeti"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1

@@ -172,6 +172,50 @@ def test_build_summary_computes_expected_sections(tmp_path, monkeypatch):
     assert first_complete["elapsed_sec"] == 0.7
 
 
+def test_build_summary_reports_schema_version_breakdown(tmp_path):
+    """K-36: v1 -> v2 gecisinde iki surum ayni akista yan yana olabilir --
+    ozet bunlari sessizce birlestirmek yerine ayri sayar."""
+    raw_dir = tmp_path / "raw"
+    coverage_dir = tmp_path / "coverage"
+    rejected_dir = tmp_path / "rejected"
+
+    rounds = [
+        {"job_id": "job1", "round_id": "r1", "open_ts": 1000, "close_ts": 2000, "status": "complete",
+         "schema_version": 1, "observations": [], "raw": []},
+        {"job_id": "job1", "round_id": "r2", "open_ts": 2000, "close_ts": 2500, "status": "complete",
+         "schema_version": 2, "observations": [], "raw": []},
+        {"job_id": "job1", "round_id": "r3", "open_ts": 2500, "close_ts": 3000, "status": "complete",
+         "schema_version": 2, "observations": [], "raw": []},
+    ]
+    _write_jsonl(raw_dir / "runner=longjob" / "date=2026-01-01" / "rounds.jsonl", rounds)
+
+    summary = build_summary(raw_dir=raw_dir, coverage_dir=coverage_dir, rejected_dir=rejected_dir)
+
+    assert summary["schema_version_counts"] == {"2": 2, "1": 1}
+
+
+def test_build_summary_until_ms_excludes_records_at_or_after_boundary(tmp_path):
+    """K-37: --until ust sinir HARIC ([since, until)) -- gunluk saglik
+    raporunda "onceki tam UTC gunu"nu bugunun kismi verisinden ayirmak
+    icin eklendi."""
+    raw_dir = tmp_path / "raw"
+    coverage_dir = tmp_path / "coverage"
+    rejected_dir = tmp_path / "rejected"
+
+    rounds = [
+        {"job_id": "job-yesterday", "round_id": "r1", "open_ts": 1000, "close_ts": 1300, "status": "complete", "observations": [], "raw": []},
+        {"job_id": "job-today", "round_id": "r2", "open_ts": 2000, "close_ts": 2300, "status": "complete", "observations": [], "raw": []},
+    ]
+    _write_jsonl(raw_dir / "runner=longjob" / "date=2026-01-01" / "rounds.jsonl", rounds)
+
+    summary = build_summary(
+        raw_dir=raw_dir, coverage_dir=coverage_dir, rejected_dir=rejected_dir, since_ms=500, until_ms=2000
+    )
+
+    assert summary["rounds_seen"] == 1
+    assert summary["scope"] == {"job_id": None, "since_ms": 500, "until_ms": 2000}
+
+
 def test_main_writes_summary_files(tmp_path):
     dirs = _setup_fixtures(tmp_path)
     out_dir = tmp_path / "out"
@@ -199,6 +243,30 @@ def test_main_writes_summary_files(tmp_path):
     parsed = json.loads(summary_json.read_text(encoding="utf-8"))
     assert parsed["rounds_seen"] == 2
     assert "12. Ilk complete turun" in summary_txt.read_text(encoding="utf-8")
+
+
+def test_main_accepts_until_cli_flag(tmp_path):
+    """K-37: --until argparse'a bagli, daily_health.yml'in [since, until)
+    cagrisini uctan uca dogrular."""
+    dirs = _setup_fixtures(tmp_path)
+    out_dir = tmp_path / "out"
+
+    main(
+        [
+            "--raw-dir", str(dirs["raw_dir"]),
+            "--coverage-dir", str(dirs["coverage_dir"]),
+            "--rejected-dir", str(dirs["rejected_dir"]),
+            "--out-dir", str(out_dir),
+            "--since", "1970-01-01T00:00:00.500Z",
+            "--until", "1970-01-01T00:00:02.000Z",
+        ]
+    )
+
+    summary_json = next(out_dir.iterdir()) / "summary.json"
+    parsed = json.loads(summary_json.read_text(encoding="utf-8"))
+    assert parsed["scope"]["since_ms"] == 500
+    assert parsed["scope"]["until_ms"] == 2000
+    assert parsed["rounds_seen"] == 1  # yalnizca round_complete (open_ts=1000), round_missed (open_ts=2000) haric
 
 
 def test_build_summary_handles_empty_input(tmp_path):
@@ -356,7 +424,7 @@ def test_build_summary_defaults_to_latest_job_id(tmp_path):
     dirs = _setup_two_job_fixtures(tmp_path)
     summary = build_summary(raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"])
 
-    assert summary["scope"] == {"job_id": "job-new", "since_ms": None}
+    assert summary["scope"] == {"job_id": "job-new", "since_ms": None, "until_ms": None}
     assert summary["rounds_seen"] == 2
     assert summary["round_status_counts"] == {"complete": 1, "partial": 1}
     assert set(summary["metrics_by_job_id"].keys()) == {"job-new"}
@@ -371,7 +439,7 @@ def test_build_summary_job_id_filter_isolates_older_run(tmp_path):
         raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], job_id="job-old"
     )
 
-    assert summary["scope"] == {"job_id": "job-old", "since_ms": None}
+    assert summary["scope"] == {"job_id": "job-old", "since_ms": None, "until_ms": None}
     assert summary["rounds_seen"] == 1
     assert summary["round_status_counts"] == {"complete": 1}
     assert set(summary["metrics_by_job_id"].keys()) == {"job-old"}
@@ -385,7 +453,7 @@ def test_build_summary_since_filter_pools_multiple_jobs_with_breakdown(tmp_path)
         raw_dir=dirs["raw_dir"], coverage_dir=dirs["coverage_dir"], rejected_dir=dirs["rejected_dir"], since_ms=0
     )
 
-    assert summary["scope"] == {"job_id": None, "since_ms": 0}
+    assert summary["scope"] == {"job_id": None, "since_ms": 0, "until_ms": None}
     assert summary["rounds_seen"] == 3  # havuzlanmis: iki job'un toplami
     assert set(summary["metrics_by_job_id"].keys()) == {"job-old", "job-new"}
     assert summary["metrics_by_job_id"]["job-old"]["rounds_seen"] == 1

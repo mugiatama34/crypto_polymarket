@@ -10,7 +10,7 @@
     "decision", "status", "timing_valid", "raw"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
+    "schema_version": { "const": 2 },
     "runner_id": { "enum": ["longjob", "cron"] },
     "job_id": { "type": "string", "minLength": 1 },
     "data_lane": { "enum": ["forward_paper", "backtest"] },
@@ -117,7 +117,7 @@
           "enum": ["binance", "coinbase", "kraken", "polymarket_rtds", "chainlink", "none"]
         },
         "feed_ts": { "type": ["integer", "null"] },
-        "feed_ts_source": { "enum": ["point", "none"] }
+        "feed_ts_source": { "enum": ["point", "venue_rest", "none"] }
       },
       "allOf": [
         {
@@ -145,7 +145,7 @@
         },
         {
           "if": { "properties": { "feed_ts": { "type": "integer" } } },
-          "then": { "properties": { "feed_ts_source": { "const": "point" } } }
+          "then": { "properties": { "feed_ts_source": { "enum": ["point", "venue_rest"] } } }
         }
       ]
     },

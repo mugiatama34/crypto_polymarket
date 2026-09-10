@@ -3,8 +3,10 @@
 Bu dosya toplayıcının ne yazacağını tanımlar. Metrik, strateji veya rapor
 tanımı **içermez**. Tek amacı: ham veriyi eksiksiz ve değiştirilemez tutmak.
 
-`schema_version: 1` — her kayıt bu alanı taşır. Şema değişirse sürüm artar,
-eski veri dönüştürülmez.
+`schema_version` — her kayıt bu alanı taşır. Üç kayıt tipinin (round,
+outcome, heartbeat) sürümü **bağımsız** artar. Şema değişirse sürüm artar,
+eski veri dönüştürülmez, iki sürüm yan yana yaşar (bkz. docs/decisions.md
+K-14). Şu an: `round` → 2 (bkz. K-36), `outcome`/`heartbeat` → 1.
 
 ---
 
@@ -61,7 +63,7 @@ Bir satır = bir 5 dakikalık market.
 
 | Alan | Tip | Not |
 |---|---|---|
-| `schema_version` | int | 1 |
+| `schema_version` | int | 2 (bkz. K-36 — 2026-09-09 tarihli v1 verisi dönüştürülmedi) |
 | `runner_id` | string | `longjob` \| `cron` |
 | `job_id` | string | Bu turu yazan job çalıştırması |
 | `data_lane` | string | `forward_paper` \| `backtest` |
@@ -132,7 +134,7 @@ reddedilir.
 | `source` | string | `rtds_chainlink` \| `rtds_binance` \| `rest_poll` \| `onchain` \| `none` — **taşıma yolu** (bu sayıyı nasıl aldık) |
 | `venue` | string | `binance` \| `coinbase` \| `kraken` \| `polymarket_rtds` \| `chainlink` \| `none` — **kaynak** (bu sayı hangi borsa/oracle'dan) |
 | `feed_ts` | int \| null | Feed'in kendi bildirdiği zaman — bizim `response_ts`'imiz değil. Oracle gecikmesini ölçmenin tek yolu bu. |
-| `feed_ts_source` | string | `point` \| `none` — `feed_ts` nereden geldi. `point`: RTDS'in `payload.data[]` dökümündeki nokta-bazlı zaman damgasından (tek doğrulanmış kaynak, bkz. docs/decisions.md K-08/K-27/K-28). `none`: `feed_ts` bilinmiyor (`null`) — REST bacağı, ya da WS'te henüz nokta-bazlı bir zaman damgası çıkarılamamış. |
+| `feed_ts_source` | string | `point` \| `venue_rest` \| `none` — `feed_ts` nereden geldi. `point`: RTDS'in `payload.data[]` dökümündeki nokta-bazlı zaman damgasından (bkz. docs/decisions.md K-08/K-27/K-28) — yalnızca `ws` bacağında görülür. `venue_rest`: REST bacağında, borsanın kendi yanıtındaki zaman alanından (şu an yalnızca Coinbase — `time` alanı; Kraken/Binance'te böyle bir alan yok, bkz. K-36). `none`: `feed_ts` bilinmiyor (`null`). |
 
 `source` *nasıl* aldığımızı, `venue` *kimden* aldığımızı anlatır — ikisi
 birlikte tutulur çünkü aynı `source` (`rest_poll`) farklı `venue`'lere
@@ -148,13 +150,17 @@ Tutarlılık kuralları:
 - `value: null` ⟺ `source: "none"` ve `venue: "none"` ve `feed_ts: null`.
   Değer yoksa kaynak, borsa ve zaman damgası da yoktur.
 - `value` doluysa `source` ve `venue` `"none"` olamaz.
-- `feed_ts: null` ile `value` dolu olması geçerlidir — bazı REST uçları
-  zaman damgası döndürmez (`source: "rest_poll"` tipik örnek). Bu
-  bilinçli bir gevşeklik; katılaştırmadan önce burayı tartışmaya aç.
+- `feed_ts: null` ile `value` dolu olması geçerlidir — Kraken ve
+  Binance'in REST uçları zaman damgası döndürmez (`source: "rest_poll"`,
+  `venue: "kraken"`/`"binance"`). Coinbase döndürür (`venue: "coinbase"`
+  → `feed_ts` dolu, bkz. K-36). Bu borsaya bağlı bir gevşeklik, kod bunu
+  varsaymaz — hangi borsa seçilirse (K-19) o borsanın kapasitesine göre
+  çalışır.
 - `feed_ts: null` ⟺ `feed_ts_source: "none"`. `feed_ts` doluysa
-  `feed_ts_source: "point"` olmak zorundadır — şu an `feed_ts`'in tek
-  doğrulanmış kaynağı nokta-bazlı zaman damgası olduğu için başka bir
-  değer geçerli değil (bkz. docs/decisions.md K-29).
+  `feed_ts_source` `"point"` veya `"venue_rest"` olmak zorundadır —
+  `"none"` olamaz. İkisi karıştırılmaz: `point` yalnızca RTDS'in
+  nokta-bazlı zaman damgasını (bkz. K-29), `venue_rest` yalnızca REST
+  bacağında borsanın kendi yanıt alanını işaret eder (bkz. K-36).
 
 ### 4.2 `decision`
 
