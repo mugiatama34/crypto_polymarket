@@ -6,21 +6,33 @@ name: Gunluk saglik raporu
 # surer, shutdown_margin_sec) bitip son commit'ini push'lamasi icin tampon
 # birakir.
 #
-# Kapsam ONCEKI TAM UTC GUNU -- kayan pencere degil: her kosum tam, kapanmis
-# bir gunu ozetler, raporlar gunler arasi karsilastirilabilir kalir. Bunun
-# icin scripts/shakedown_report.py'ye --until eklendi (K-37) -- [dun 00:00Z,
-# bugun 00:00Z) araligi. Gun sinirinin hesabi bash'te yapilir, ${{ }} icinde
-# aritmetik/tarih hesaplama YOK (K-31'in genel kurali).
+# Cron kosumunda kapsam ONCEKI TAM UTC GUNU -- kayan pencere degil: her kosum
+# tam, kapanmis bir gunu ozetler, raporlar gunler arasi karsilastirilabilir
+# kalir. Bunun icin scripts/shakedown_report.py'ye --until eklendi (K-37) --
+# [dun 00:00Z, bugun 00:00Z) araligi.
 #
-# Cikti data/'ya degil daily_health/<ozetlenen-tarih>/ altina yazilir --
-# shakedown_output/ (elle tetiklenen kisa test kosumlarinin ciktisi) ile
-# karismaz. HICBIR SEY data/ altina yazilmaz (shakedown_report salt-okunur,
-# bkz. scripts/shakedown_report.py docstring'i) -- yalnizca daily_health/
-# commit edilir.
+# workflow_dispatch elle tetiklenirse `hours_back` girdisi (varsayilan "24")
+# ile kayan bir pencere kullanilir: --since = simdiden `hours_back` saat
+# once, --until verilmez (acik ust sinir). Her iki durumda da pencere/gun
+# hesabi bash'te yapilir, ${{ }} icinde aritmetik/tarih hesaplama YOK
+# (K-31'in genel kurali).
+#
+# Cikti data/'ya degil daily_health/ altina yazilir. Cron kosumu
+# daily_health/<ozetlenen-tarih>/ altina yazar; elle tetiklenen kosum ayri
+# bir alt dizine, daily_health/adhoc/<kosum-zamani>/ altina yazar -- gunluk
+# seri ile karismasin. shakedown_output/ (elle tetiklenen kisa test
+# kosumlarinin ciktisi) ile de karismaz. HICBIR SEY data/ altina yazilmaz
+# (shakedown_report salt-okunur, bkz. scripts/shakedown_report.py
+# docstring'i) -- yalnizca daily_health/ commit edilir.
 on:
   schedule:
     - cron: "20 0 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      hours_back:
+        description: "Elle tetiklemede kac saat geriye gidilecek (--since hesabi icin)"
+        type: string
+        default: "24"
 
 permissions:
   contents: write
@@ -43,21 +55,43 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Kapsanan gunu hesapla (onceki tam UTC gunu)
+      - name: "Kapsami hesapla (cron: onceki tam UTC gunu / dispatch: hours_back penceresi)"
         id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HOURS_BACK: ${{ github.event.inputs.hours_back }}
         run: |
-          yesterday_date="$(date -u -d 'yesterday' +%Y-%m-%d)"
-          today_date="$(date -u +%Y-%m-%d)"
-          echo "date=${yesterday_date}" >> "$GITHUB_OUTPUT"
-          echo "since=${yesterday_date}T00:00:00Z" >> "$GITHUB_OUTPUT"
-          echo "until=${today_date}T00:00:00Z" >> "$GITHUB_OUTPUT"
+          set -e
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            hours_back="${HOURS_BACK:-24}"
+            run_ts="$(date -u +%Y%m%dT%H%M%SZ)"
+            since_ts="$(date -u -d "${hours_back} hours ago" +%Y-%m-%dT%H:%M:%SZ)"
+            echo "since=${since_ts}" >> "$GITHUB_OUTPUT"
+            echo "until=" >> "$GITHUB_OUTPUT"
+            echo "out_dir=daily_health/adhoc/${run_ts}" >> "$GITHUB_OUTPUT"
+            echo "commit_label=elle tetiklenen (son ${hours_back}s, ${run_ts})" >> "$GITHUB_OUTPUT"
+          else
+            yesterday_date="$(date -u -d 'yesterday' +%Y-%m-%d)"
+            today_date="$(date -u +%Y-%m-%d)"
+            echo "since=${yesterday_date}T00:00:00Z" >> "$GITHUB_OUTPUT"
+            echo "until=${today_date}T00:00:00Z" >> "$GITHUB_OUTPUT"
+            echo "out_dir=daily_health/${yesterday_date}" >> "$GITHUB_OUTPUT"
+            echo "commit_label=${yesterday_date} gunu" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Gunluk saglik raporunu uret
+      - name: Saglik raporunu uret
         run: |
-          python -m scripts.shakedown_report \
-            --since "${{ steps.scope.outputs.since }}" \
-            --until "${{ steps.scope.outputs.until }}" \
-            --out-dir "daily_health/${{ steps.scope.outputs.date }}"
+          set -e
+          if [ -n "${{ steps.scope.outputs.until }}" ]; then
+            python -m scripts.shakedown_report \
+              --since "${{ steps.scope.outputs.since }}" \
+              --until "${{ steps.scope.outputs.until }}" \
+              --out-dir "${{ steps.scope.outputs.out_dir }}"
+          else
+            python -m scripts.shakedown_report \
+              --since "${{ steps.scope.outputs.since }}" \
+              --out-dir "${{ steps.scope.outputs.out_dir }}"
+          fi
 
       - name: Ciktiyi commit et ve push'la
         run: |
@@ -67,7 +101,7 @@ jobs:
             echo "commit edilecek degisiklik yok."
             exit 0
           fi
-          git commit -m "daily_health: ${{ steps.scope.outputs.date }} gunu saglik ozeti"
+          git commit -m "daily_health: ${{ steps.scope.outputs.commit_label }} saglik ozeti"
           for attempt in 1 2 3; do
             if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
               exit 0
