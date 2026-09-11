@@ -289,3 +289,20 @@
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-033ac5375798", "event": "tick", "ts": 1789118885005, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-033ac5375798", "event": "tick", "ts": 1789118970030, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-033ac5375798", "event": "job_end", "ts": 1789119003097, "rounds_seen": 71, "rounds_missed": 0, "detail": "6 saat siniri yaklasti, temiz kapanis", "rounds_error": 0, "rounds_skipped_stale": 69, "discovery_slug_hits": 71, "discovery_listing_hits": 0, "rtds_dropped_not_json": 0, "rtds_dropped_unknown_symbol": 0, "rtds_dropped_unknown_shape": 0, "clob_ws_dropped_not_json": 0, "clob_ws_dropped_unknown_event_type": 0, "clob_ws_dropped_unknown_shape": 0}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "job_start", "ts": 1789123577308, "rounds_seen": null, "rounds_missed": null, "detail": "exchange=coinbase ws_leg=off"}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "error", "ts": 1789123577309, "rounds_seen": null, "rounds_missed": null, "detail": "backlog atlandi: state btc-updown-5m-1789119000'den devam edecekti, ~15 tur geride (2 tur esiginin uzerinde); btc-updown-5m-1789123800'den devam ediliyor"}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789123637370, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789123697411, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789123757442, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789123817462, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789123920042, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789123980176, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124040230, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124160060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124220282, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124285005, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124350073, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124460010, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124520195, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124585005, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-bfab03ba5844", "event": "tick", "ts": 1789124670022, "rounds_seen": null, "rounds_missed": null, "detail": null}
