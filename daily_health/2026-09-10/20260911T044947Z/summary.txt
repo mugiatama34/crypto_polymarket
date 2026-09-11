@@ -1,0 +1,21 @@
+Shakedown saglik raporu -- 2026-09-11T04:49:47.897045+00:00
+Kapsam: job_id=None since_ms=1788998400000 until_ms=1789084800000
+
+1. Tur sayisi: 140 -- durum kirilimi: {'complete': 140} -- complete turlarin timing_valid kirilimi: {'True': 140} -- schema_version kirilimi (K-36): {'2': 140}
+2. Tur basina gozlem sayisi: count=140 null=0 min=12 medyan=12.0 maks=12 (beklenen 12, tam eslesen 140 tur)
+3. offset_actual_sec sapmasi (sn): count=1680 null=0 min=-0.06200000000001182 medyan=-0.006000000000000227 maks=0.0
+4. feed_ts_source dagilimi (btc_reference): {'rest|coinbase|venue_rest': 1680}
+   feed_ts_source dagilimi (btc_oracle): {'rest|none|none': 1680}
+5. staleness_ms (transport basina):
+   rest: count=1680 null=0 min=227 medyan=1231.0 maks=5050
+6. latency_ms (yalnizca rest): count=1680 null=0 min=98 medyan=157.0 maks=1360
+7. Dusen RTDS cerceve sayaclari: {'rtds_dropped_not_json': 0, 'rtds_dropped_unknown_symbol': 0, 'rtds_dropped_unknown_shape': 0}
+8. Reddedilen satir sayisi: 0 -- sebepler: {}
+9. Heartbeat bosluklari -- genel en uzun: 119.922 sn, job basina: {'longjob-d98e5eb34619': {'tick_count': 288, 'max_gap_sec': 119.875}, 'longjob-89771a9418ae': {'tick_count': 278, 'max_gap_sec': 119.922}}
+10. venue dagilimi (yalnizca rest): {'coinbase': 1680}
+11. WS cerceve type dagilimi (K-28b): {}
+12. Ilk complete turun job_start'tan elapsed suresi: {'longjob-d98e5eb34619': {'round_id': 'btc-updown-5m-1789022700', 'job_start_ts': 1789022493824, 'elapsed_sec': 496.372}, 'longjob-89771a9418ae': {'round_id': 'btc-updown-5m-1789056000', 'job_start_ts': 1789055912585, 'elapsed_sec': 377.581}}
+13. Dusen CLOB WS cerceve sayaclari: {'clob_ws_dropped_not_json': 0, 'clob_ws_dropped_unknown_event_type': 0, 'clob_ws_dropped_unknown_shape': 0}
+14. Runner-seviyesi tur sayaclari (job_end, rounds_seen/rounds_missed/rounds_error/rounds_skipped_stale): {'longjob-d98e5eb34619': {'rounds_seen': 71, 'rounds_missed': 0, 'rounds_error': 0, 'rounds_skipped_stale': 95}}
+15. Round isleme istisna tipi dagilimi (rounds_error'a katkida bulunan): {}
+16. Bolum 1-6/10/11'in job_id kirilimi (bu kapsamda birden fazla job_id varsa ayirt eder): {'longjob-89771a9418ae': {'rounds_seen': 69, 'round_status_counts': {'complete': 69}, 'schema_version_counts': {'2': 69}, 'complete_timing_valid_counts': {'True': 69}, 'observation_count_distribution': {'count': 69, 'null_count': 0, 'min': 12, 'median': 12, 'max': 12, 'expected': 12, 'rounds_matching_expected': 69}, 'offset_actual_deviation_sec': {'count': 828, 'null_count': 0, 'min': -0.06100000000000705, 'median': -0.006000000000000227, 'max': 0.0}, 'feed_ts_source_distribution': {'btc_reference': {'rest|coinbase|venue_rest': 828}, 'btc_oracle': {'rest|none|none': 828}}, 'staleness_ms_by_transport': {'rest': {'count': 828, 'null_count': 0, 'min': 227, 'median': 1207.0, 'max': 4767}}, 'latency_ms_rest_only': {'count': 828, 'null_count': 0, 'min': 98, 'median': 116.0, 'max': 1360}, 'venue_distribution_rest_only': {'coinbase': 828}, 'ws_frame_type_distribution': {}}, 'longjob-d98e5eb34619': {'rounds_seen': 71, 'round_status_counts': {'complete': 71}, 'schema_version_counts': {'2': 71}, 'complete_timing_valid_counts': {'True': 71}, 'observation_count_distribution': {'count': 71, 'null_count': 0, 'min': 12, 'median': 12, 'max': 12, 'expected': 12, 'rounds_matching_expected': 71}, 'offset_actual_deviation_sec': {'count': 852, 'null_count': 0, 'min': -0.06200000000001182, 'median': -0.006000000000000227, 'max': 0.0}, 'feed_ts_source_distribution': {'btc_reference': {'rest|coinbase|venue_rest': 852}, 'btc_oracle': {'rest|none|none': 852}}, 'staleness_ms_by_transport': {'rest': {'count': 852, 'null_count': 0, 'min': 300, 'median': 1262.0, 'max': 5050}}, 'latency_ms_rest_only': {'count': 852, 'null_count': 0, 'min': 150, 'median': 185.0, 'max': 1199}, 'venue_distribution_rest_only': {'coinbase': 852}, 'ws_frame_type_distribution': {}}}
