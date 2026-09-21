@@ -688,3 +688,18 @@
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-200dba4061a9", "event": "tick", "ts": 1790013720133, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-200dba4061a9", "event": "tick", "ts": 1790013785005, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-200dba4061a9", "event": "tick", "ts": 1790013870030, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "job_start", "ts": 1790027284101, "rounds_seen": null, "rounds_missed": null, "detail": "exchange=coinbase ws_leg=off"}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "error", "ts": 1790027284102, "rounds_seen": null, "rounds_missed": null, "detail": "backlog atlandi: state btc-updown-5m-1790013900'den devam edecekti, ~44 tur geride (2 tur esiginin uzerinde); btc-updown-5m-1790027400'den devam ediliyor"}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027344148, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027404154, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027520020, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027580124, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027640172, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027760060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027820060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027880121, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790027940148, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790028060060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790028120060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790028180127, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-151e684b098d", "event": "tick", "ts": 1790028240146, "rounds_seen": null, "rounds_missed": null, "detail": null}
