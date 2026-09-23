@@ -1,0 +1,347 @@
+{
+  "generated_at_utc": "2026-09-23T04:54:29.804869+00:00",
+  "scope": {
+    "job_id": null,
+    "since_ms": 1790035200000,
+    "until_ms": 1790121600000
+  },
+  "rounds_seen": 220,
+  "round_status_counts": {
+    "complete": 218,
+    "partial": 2
+  },
+  "schema_version_counts": {
+    "2": 220
+  },
+  "complete_timing_valid_counts": {
+    "True": 217,
+    "False": 1
+  },
+  "observation_count_distribution": {
+    "count": 220,
+    "null_count": 0,
+    "min": 12,
+    "median": 12.0,
+    "max": 12,
+    "expected": 12,
+    "rounds_matching_expected": 220
+  },
+  "offset_actual_deviation_sec": {
+    "count": 2640,
+    "null_count": 0,
+    "min": -753.143,
+    "median": -0.006000000000000227,
+    "max": 0.0
+  },
+  "feed_ts_source_distribution": {
+    "btc_reference": {
+      "rest|coinbase|venue_rest": 2640
+    },
+    "btc_oracle": {
+      "rest|none|none": 2640
+    }
+  },
+  "staleness_ms_by_transport": {
+    "rest": {
+      "count": 2640,
+      "null_count": 0,
+      "min": 161,
+      "median": 1193.5,
+      "max": 6686
+    }
+  },
+  "latency_ms_rest_only": {
+    "count": 2640,
+    "null_count": 0,
+    "min": 103,
+    "median": 157.0,
+    "max": 5807
+  },
+  "venue_distribution_rest_only": {
+    "coinbase": 2640
+  },
+  "ws_frame_type_distribution": {},
+  "rtds_dropped_frame_totals": {
+    "rtds_dropped_not_json": 0,
+    "rtds_dropped_unknown_symbol": 0,
+    "rtds_dropped_unknown_shape": 0
+  },
+  "clob_ws_dropped_frame_totals": {
+    "clob_ws_dropped_not_json": 0,
+    "clob_ws_dropped_unknown_event_type": 0,
+    "clob_ws_dropped_unknown_shape": 0
+  },
+  "rejected_rows": {
+    "count": 0,
+    "error_reason_counts": {}
+  },
+  "heartbeat_gaps": {
+    "overall_max_gap_sec": 119.917,
+    "by_job_id": {
+      "longjob-151e684b098d": {
+        "tick_count": 172,
+        "max_gap_sec": 119.917
+      },
+      "longjob-bdec641518e0": {
+        "tick_count": 282,
+        "max_gap_sec": 119.917
+      },
+      "longjob-bd0f11706649": {
+        "tick_count": 278,
+        "max_gap_sec": 119.867
+      },
+      "longjob-ca87d4e06066": {
+        "tick_count": 145,
+        "max_gap_sec": 119.86
+      }
+    }
+  },
+  "first_complete_round_elapsed_by_job_id": {
+    "longjob-151e684b098d": null,
+    "longjob-bdec641518e0": {
+      "round_id": "btc-updown-5m-1790048700",
+      "job_start_ts": 1790048913087,
+      "elapsed_sec": 77.053
+    },
+    "longjob-bd0f11706649": {
+      "round_id": "btc-updown-5m-1790075400",
+      "job_start_ts": 1790075337184,
+      "elapsed_sec": 353.019
+    },
+    "longjob-ca87d4e06066": {
+      "round_id": "btc-updown-5m-1790111100",
+      "job_start_ts": 1790110815469,
+      "elapsed_sec": 574.747
+    }
+  },
+  "round_counters_by_job_id": {},
+  "round_error_exception_type_counts": {},
+  "metrics_by_job_id": {
+    "longjob-151e684b098d": {
+      "rounds_seen": 43,
+      "round_status_counts": {
+        "complete": 43
+      },
+      "schema_version_counts": {
+        "2": 43
+      },
+      "complete_timing_valid_counts": {
+        "True": 43
+      },
+      "observation_count_distribution": {
+        "count": 43,
+        "null_count": 0,
+        "min": 12,
+        "median": 12,
+        "max": 12,
+        "expected": 12,
+        "rounds_matching_expected": 43
+      },
+      "offset_actual_deviation_sec": {
+        "count": 516,
+        "null_count": 0,
+        "min": -0.06100000000000705,
+        "median": -0.006000000000000227,
+        "max": 0.0
+      },
+      "feed_ts_source_distribution": {
+        "btc_reference": {
+          "rest|coinbase|venue_rest": 516
+        },
+        "btc_oracle": {
+          "rest|none|none": 516
+        }
+      },
+      "staleness_ms_by_transport": {
+        "rest": {
+          "count": 516,
+          "null_count": 0,
+          "min": 328,
+          "median": 1171.5,
+          "max": 2443
+        }
+      },
+      "latency_ms_rest_only": {
+        "count": 516,
+        "null_count": 0,
+        "min": 105,
+        "median": 128.0,
+        "max": 761
+      },
+      "venue_distribution_rest_only": {
+        "coinbase": 516
+      },
+      "ws_frame_type_distribution": {}
+    },
+    "longjob-bd0f11706649": {
+      "rounds_seen": 69,
+      "round_status_counts": {
+        "complete": 69
+      },
+      "schema_version_counts": {
+        "2": 69
+      },
+      "complete_timing_valid_counts": {
+        "True": 69
+      },
+      "observation_count_distribution": {
+        "count": 69,
+        "null_count": 0,
+        "min": 12,
+        "median": 12,
+        "max": 12,
+        "expected": 12,
+        "rounds_matching_expected": 69
+      },
+      "offset_actual_deviation_sec": {
+        "count": 828,
+        "null_count": 0,
+        "min": -0.06200000000001182,
+        "median": -0.006000000000000227,
+        "max": 0.0
+      },
+      "feed_ts_source_distribution": {
+        "btc_reference": {
+          "rest|coinbase|venue_rest": 828
+        },
+        "btc_oracle": {
+          "rest|none|none": 828
+        }
+      },
+      "staleness_ms_by_transport": {
+        "rest": {
+          "count": 828,
+          "null_count": 0,
+          "min": 199,
+          "median": 1266.0,
+          "max": 6686
+        }
+      },
+      "latency_ms_rest_only": {
+        "count": 828,
+        "null_count": 0,
+        "min": 153,
+        "median": 191.0,
+        "max": 5807
+      },
+      "venue_distribution_rest_only": {
+        "coinbase": 828
+      },
+      "ws_frame_type_distribution": {}
+    },
+    "longjob-bdec641518e0": {
+      "rounds_seen": 73,
+      "round_status_counts": {
+        "partial": 2,
+        "complete": 71
+      },
+      "schema_version_counts": {
+        "2": 73
+      },
+      "complete_timing_valid_counts": {
+        "True": 70,
+        "False": 1
+      },
+      "observation_count_distribution": {
+        "count": 73,
+        "null_count": 0,
+        "min": 12,
+        "median": 12,
+        "max": 12,
+        "expected": 12,
+        "rounds_matching_expected": 73
+      },
+      "offset_actual_deviation_sec": {
+        "count": 876,
+        "null_count": 0,
+        "min": -753.143,
+        "median": -0.006999999999999673,
+        "max": 0.0
+      },
+      "feed_ts_source_distribution": {
+        "btc_reference": {
+          "rest|coinbase|venue_rest": 876
+        },
+        "btc_oracle": {
+          "rest|none|none": 876
+        }
+      },
+      "staleness_ms_by_transport": {
+        "rest": {
+          "count": 876,
+          "null_count": 0,
+          "min": 161,
+          "median": 1168.5,
+          "max": 2441
+        }
+      },
+      "latency_ms_rest_only": {
+        "count": 876,
+        "null_count": 0,
+        "min": 103,
+        "median": 124.0,
+        "max": 267
+      },
+      "venue_distribution_rest_only": {
+        "coinbase": 876
+      },
+      "ws_frame_type_distribution": {}
+    },
+    "longjob-ca87d4e06066": {
+      "rounds_seen": 35,
+      "round_status_counts": {
+        "complete": 35
+      },
+      "schema_version_counts": {
+        "2": 35
+      },
+      "complete_timing_valid_counts": {
+        "True": 35
+      },
+      "observation_count_distribution": {
+        "count": 35,
+        "null_count": 0,
+        "min": 12,
+        "median": 12,
+        "max": 12,
+        "expected": 12,
+        "rounds_matching_expected": 35
+      },
+      "offset_actual_deviation_sec": {
+        "count": 420,
+        "null_count": 0,
+        "min": -0.06200000000001182,
+        "median": -0.006000000000000227,
+        "max": 0.0
+      },
+      "feed_ts_source_distribution": {
+        "btc_reference": {
+          "rest|coinbase|venue_rest": 420
+        },
+        "btc_oracle": {
+          "rest|none|none": 420
+        }
+      },
+      "staleness_ms_by_transport": {
+        "rest": {
+          "count": 420,
+          "null_count": 0,
+          "min": 292,
+          "median": 1168.0,
+          "max": 2367
+        }
+      },
+      "latency_ms_rest_only": {
+        "count": 420,
+        "null_count": 0,
+        "min": 155,
+        "median": 189.5,
+        "max": 731
+      },
+      "venue_distribution_rest_only": {
+        "coinbase": 420
+      },
+      "ws_frame_type_distribution": {}
+    }
+  }
+}
