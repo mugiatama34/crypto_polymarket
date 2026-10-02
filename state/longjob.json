@@ -1,5 +1,5 @@
 {
-  "last_processed_round_epoch_s": 1790958600,
-  "updated_at_ms": 1790958890261,
+  "last_processed_round_epoch_s": 1790959800,
+  "updated_at_ms": 1790960090251,
   "_note": "turetilmis durum, SCHEMA.md kapsaminda degil; dosya silinirse longjob bir sonraki round'dan yeniden kurulur"
 }
