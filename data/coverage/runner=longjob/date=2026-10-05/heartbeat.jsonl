@@ -690,3 +690,10 @@
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-994cd59c258b", "event": "tick", "ts": 1791229320036, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-994cd59c258b", "event": "tick", "ts": 1791229380172, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-994cd59c258b", "event": "tick", "ts": 1791229440244, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "job_start", "ts": 1791244439296, "rounds_seen": null, "rounds_missed": null, "detail": "exchange=coinbase ws_leg=off"}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "error", "ts": 1791244439296, "rounds_seen": null, "rounds_missed": null, "detail": "backlog atlandi: state btc-updown-5m-1791229500'den devam edecekti, ~49 tur geride (2 tur esiginin uzerinde); btc-updown-5m-1791244500'den devam ediliyor"}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "tick", "ts": 1791244499427, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "tick", "ts": 1791244559433, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "tick", "ts": 1791244620060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "tick", "ts": 1791244680143, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-81567b73f8a4", "event": "tick", "ts": 1791244740154, "rounds_seen": null, "rounds_missed": null, "detail": null}
