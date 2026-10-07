@@ -676,3 +676,20 @@
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392220018, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392280112, "rounds_seen": null, "rounds_missed": null, "detail": null}
 {"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392340150, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "error", "ts": 1791392399392, "rounds_seen": null, "rounds_missed": null, "detail": "git commit/push basarisiz: git push 3 denemede basarisiz. son pull hatasi: None, son push hatasi: \"remote: Internal Server Error        \\nremote: Request ID 600C:1F88F:1066984:157615F:6AC67A8D        \\nremote: Time 2026-10-07T16:59:59Z\\nTo https://github.com/mugiatama34/crypto_polymarket\\n ! [remote rejected] main -> main (Internal Server Error)\\nerror: failed to push some refs to 'https://github.com/mugiatama34/crypto_polymarket'\\n\""}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392460050, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392520138, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392585005, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392670020, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392760058, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392820060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392880163, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791392940179, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393060050, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393120225, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393185005, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393270002, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393360060, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393420171, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393485005, "rounds_seen": null, "rounds_missed": null, "detail": null}
+{"schema_version": 1, "runner_id": "longjob", "job_id": "longjob-1c9b0946c8e4", "event": "tick", "ts": 1791393570030, "rounds_seen": null, "rounds_missed": null, "detail": null}
