@@ -1,0 +1,64 @@
+name: Sonuclari cek (tek seferlik)
+
+# Cozulmus turlarin sonucunu Gamma'dan ceker ve data/outcomes/'a yazar
+# (bkz. docs/decisions.md K-38, scripts/fetch_outcomes.py). Surekli calisan
+# bir uzlastirici DEGIL -- yalnizca elle tetiklenir, schedule yok.
+#
+# Append-only: zaten yazilmis round_id'ler atlanir. Yarida kesilirse (timeout,
+# iptal) yeniden tetiklemek guvenlidir; son adim if: always() ile o ana kadar
+# yazilanlari commit eder.
+#
+# Istek hizi script icinde sinirli (varsayilan 0.4 sn aralik, ~2.5 istek/sn).
+# ~6.000 tur icin ~40 dakika. --max-seconds (6000) script'i timeout'tan once
+# temiz durdurur; kalanlar bir sonraki tetiklemede cekilir.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-outcomes
+  cancel-in-progress: false
+
+jobs:
+  fetch_outcomes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Git kimligini ayarla
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sonuclari cek
+        run: python -m scripts.fetch_outcomes --max-seconds 6000
+
+      - name: Ciktilari commit et ve push'la
+        if: always()
+        run: |
+          set -e
+          git add data/outcomes data/rejected
+          if git diff --cached --quiet; then
+            echo "commit edilecek degisiklik yok."
+            exit 0
+          fi
+          git commit -m "fetch_outcomes: $(date -u +%Y-%m-%dT%H:%M:%SZ) sonuc cekimi"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push denemesi $attempt basarisiz, tekrar deneniyor..."
+            sleep 3
+          done
+          echo "push 3 denemede basarisiz oldu." >&2
+          exit 1

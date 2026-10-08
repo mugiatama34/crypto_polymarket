@@ -1110,3 +1110,115 @@ değişiklik yok).
 
 `schema_version_counts` (K-36) sayesinde bu günlük rapor, gün içinde
 v1→v2 geçişi olsa bile hangi payın hangi şemada olduğunu gösterir.
+
+---
+
+## K-38 — Son analiz: tek kural, önceden kayıtlı kriter (ÖN KAYIT — sonuç görülmeden yazıldı)
+
+Bu kayıt, `data/outcomes/` boşken ve hiçbir tur sonucu çekilmeden/
+görülmeden commit edildi. Commit'in zaman damgası, kural ve kriterin
+sonuçtan önce sabitlendiğinin kanıtıdır. **Bu kural ve kriter sonuç
+görüldükten sonra değiştirilmez.** Değiştirilmesi gerekirse bu kayıt
+düzenlenmez; yeni bir K-numarası açılır ve o andan sonraki veri, bu
+kayıttaki pencerelerden bağımsız yeni bir test penceresi olur.
+
+**Faz değişikliği.** CLAUDE.md'deki "C-minimal + A toplayıcı" fazı
+kapanır, proje **son analiz fazına** geçer. Bu, metrik hesaplama
+yasağının (K-15 sıralaması) bilinçli olarak kaldırılmasıdır — ama yalnızca
+aşağıdaki tek kural ve tek kriter için. Sürekli uzlaştırıcı, `cron`
+runner, dashboard, bildirim yapılmaz. Strateji parametresi ayarlama /
+optimizasyon yasağı **sürer**.
+
+### Birincil kural
+
+Her tur için, `observations[]` içinde `offset_sec == 120` ve
+`transport == "rest"` olan gözlem kullanılır.
+
+1. **Tur geçerliliği.** Gözlemin `status == "ok"` olması ve
+   `|offset_actual_sec − 120| ≤ 30` olması gerekir (K-35 toleransı).
+   Değilse işlem yok, sebebiyle sayılır (`gozlem_yok`, `gozlem_status`,
+   `gozlem_zamanlama`).
+2. **Taraf seçimi.** `book.up.best_ask` ve `book.down.best_ask`'ten
+   `0.80 ≤ best_ask ≤ 0.99` (iki uç dahil) olan taraf alınır. İkisi de
+   aralıktaysa `best_ask`'i yüksek olan alınır; ikisi eşitse işlem yok,
+   sebep `tie`. Hiçbiri aralıkta değilse işlem yok, sebep `aralik_disi`.
+3. **Boyut.** Sabit 10 hisse.
+4. **Dolum ve giriş fiyatı (VWAP).** Seçilen tarafın `asks_top5`
+   seviyeleri en iyiden başlanarak yürünür ve 10 hisse doldurulur. Giriş
+   fiyatı `p` = bu 10 hissenin hacim ağırlıklı ortalama fiyatı (VWAP).
+   İlk 5 seviyenin toplam boyutu 10 hisseyi karşılamıyorsa işlem yok,
+   sebep `derinlik_yetersiz`. Aralık kontrolü (madde 2) `best_ask`
+   üzerinden yapılır; VWAP yalnızca giriş fiyatıdır.
+5. **Ücret.** `ücret = 10 × 0.07 × p × (1 − p)`, girişte **bir kez**
+   alınır, yuvarlama yapılmaz. Bu katsayı bir varsayımdır; duyarlılık
+   için 0× ve 2× ücretle de raporlanır. Kriter 1× ile verilir.
+6. **PnL (işlem başına, $).** Kazanırsa `10 × (1 − p) − ücret`,
+   kaybederse `−10 × p − ücret`.
+7. **Sonuç.** `data/outcomes/` içindeki `outcome` alanı, `round_id` ile
+   birleştirilir (K-05). Sonucu `invalid` olan tur işlem dışı, sebep
+   `sonuc_invalid`; sonucu hiç bulunamayan tur işlem dışı, sebep
+   `sonuc_yok`. Bu sayılar raporda görünür.
+8. **Tekrar eden `round_id`.** Birden fazla satırda görülürse ilk
+   okunan (dosya tarih sırası, dosya içi satır sırası) kullanılır, diğerleri
+   sebep `tekrar` ile sayılır.
+
+### Veri bölünmesi
+
+Yarılar turun `close_ts`'inin **UTC tarihine** göre belirlenir.
+
+- **Keşif:** 9–23 Eylül 2026 (dahil). **Açıklayıcıdır, karar vermez.**
+- **Test:** 24 Eylül 00:00:00 – 8 Ekim 23:59:59 UTC. **Karar yalnızca
+  buradan verilir.** Analiz 9 Ekim'de, sonuçlar çekildikten sonra çalışır.
+- **9 Eylül v1 shakedown verisi** (`schema_version == 1`, tamamı
+  `date=2026-09-09`, 106 satır) **iki yarıdan da çıkarılır.** Shakedown
+  verisi toplama verisi değildir. Uygulama: yalnızca `schema_version == 2`
+  satırları analize girer.
+- **İkinci test penceresi:** 9 Ekim 00:00:00 – 22 Ekim 23:59:59 UTC.
+  Bu veri bu kayıt yazıldığı anda henüz toplanmamıştır ve dokunulmamış
+  kalır (bkz. aşağıda karar akışı).
+
+### Başarı kriteri
+
+Test yarısında, 1× ücret dahil, **işlem başına ortalama net PnL'in %95
+güven aralığının alt sınırı > 0**. Değilse: strateji edge göstermedi.
+Test yarısında hiç işlem yoksa kriter geçmemiş sayılır.
+
+### İstatistik yöntemi (sabit)
+
+- **Ortalama net PnL GA:** bootstrap, i.i.d. yeniden örnekleme, 10.000
+  tekrar, percentile yöntemi (%2.5 / %97.5), sabit seed `20260924`.
+- **Edge = kazanma oranı − ortalama giriş fiyatı (VWAP)** (K-02). GA:
+  kazanma oranının Wilson %95 aralığı (z = 1.96) eksi ortalama giriş
+  fiyatı; giriş fiyatı ortalaması sabit kabul edilir — bu yaklaşım
+  raporda yazılır. Kazanma oranı asla tek başına raporlanmaz.
+- **Toplam PnL, en uzun kayıp serisi, maksimum drawdown:** işlemler
+  `close_ts` sırasına göre; drawdown kümülatif net PnL'in önceki
+  zirvesinden en büyük düşüşüdür ($).
+- **Ücret duyarlılığı:** 0×, 1×, 2× için ortalama net PnL ve GA.
+- **Giriş fiyatı kovaları** (VWAP'a göre): [0.80, 0.85), [0.85, 0.90),
+  [0.90, 0.95), [0.95, 0.99]. **Yalnızca açıklayıcıdır.**
+
+Kovalar ve keşif yarısı kuralı değiştirmek için kullanılamaz. Kriteri
+yalnızca test yarısı belirler.
+
+### Karar akışı
+
+- **Test yarısı GEÇMEZSE:** strateji edge göstermedi. `longjob`'un
+  cron'u kapatılır, proje biter.
+- **Test yarısı GEÇERSE:** aynı kural ve aynı kriter, **hiçbir şey
+  değiştirilmeden**, ikinci test penceresine (9–22 Ekim) uygulanır. O da
+  geçmeden sonuç "kanıtlandı" sayılmaz.
+- Bu yüzden `longjob` şimdilik çalışmaya devam eder.
+
+### Sonuçların çekilmesi
+
+Bu container'dan Gamma erişimi ağ politikasıyla engelli; ortam ayarına
+dokunulmaz. Sonuçlar GitHub Actions'ta `workflow_dispatch` ile çalışan
+tek seferlik bir script ile çekilir (sürekli uzlaştırıcı değil): istek
+hızı sınırlı (saniyede ~2–3), append-only (zaten yazılmış `round_id`
+atlanır), yarıda kesilirse yeniden çalıştırmak güvenli. Satırlar
+`schemas/outcome.schema.json`'a karşı doğrulanır, geçemeyen
+`data/rejected/`'a yazılır.
+
+**Kapsam kilidi değişmez (K-01):** emir, cüzdan, kimlik bilgisi yok. Bu
+analiz bir paper ölçümüdür; getiri tahmini veya tavsiye değildir.

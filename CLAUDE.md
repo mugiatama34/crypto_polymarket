@@ -26,19 +26,24 @@ proje açılır.
 
 ---
 
-## Mevcut faz: C-minimal + A toplayıcı
+## Mevcut faz: son analiz (K-38)
 
-Sıralama: **şema → toplayıcı → B stratejisi → metrikler.**
+"C-minimal + A toplayıcı" fazı kapandı. Bu projenin son işi, K-38'de
+sonuç görülmeden kayda geçirilmiş **tek kural ve tek kriterin** ölçümüdür.
 
-Şu an yapılacak:
-1. `SCHEMA.md`'deki sözleşmenin doğrulayıcısı
-2. İki toplayıcı: `longjob` ve `cron`
-3. Uzlaştırıcı (sonuçları çeken ayrı job)
+Yapılacak (sırayla, her biri ayrı commit):
+1. `scripts/fetch_outcomes.py` + `workflow_dispatch` workflow'u —
+   tek seferlik sonuç çekme (sürekli uzlaştırıcı değil)
+2. `scripts/final_analysis.py` — K-38'in tanımladığı rapor
 
-Şu an **yapılmayacak:**
-- Metrik hesaplama, edge, güven aralığı
-- Dashboard, Telegram bildirimi, rapor
-- Strateji parametresi ayarlama / optimizasyon
+Kural, veri bölünmesi, başarı kriteri ve karar akışı **K-38'dedir ve
+değiştirilmez.** `longjob` çalışmaya devam eder (ikinci test penceresi
+için, bkz. K-38).
+
+**Yapılmayacak:**
+- Kural/parametre ayarlama, optimizasyon, keşif yarısına veya kovalara
+  göre kural değiştirme
+- Sürekli uzlaştırıcı, `cron` runner, dashboard, Telegram, rapor sitesi
 - B stratejisi (OKX/Binance momentum)
 
 Bu maddeler istenirse: "bu şu anki fazın dışında" de ve devam etme.
