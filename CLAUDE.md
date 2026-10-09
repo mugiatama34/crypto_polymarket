@@ -26,27 +26,20 @@ proje açılır.
 
 ---
 
-## Mevcut faz: son analiz (K-38)
+## Mevcut faz: kapandı (K-39)
 
-"C-minimal + A toplayıcı" fazı kapandı. Bu projenin son işi, K-38'de
-sonuç görülmeden kayda geçirilmiş **tek kural ve tek kriterin** ölçümüdür.
-
-Yapılacak (sırayla, her biri ayrı commit):
-1. `scripts/fetch_outcomes.py` + `workflow_dispatch` workflow'u —
-   tek seferlik sonuç çekme (sürekli uzlaştırıcı değil)
-2. `scripts/final_analysis.py` — K-38'in tanımladığı rapor
-
-Kural, veri bölünmesi, başarı kriteri ve karar akışı **K-38'dedir ve
-değiştirilmez.** `longjob` çalışmaya devam eder (ikinci test penceresi
-için, bkz. K-38).
+Proje kapandı. K-38'in önceden kayıtlı kriteri test yarısında geçmedi
+(bkz. `docs/decisions.md` K-39, `final_report/`). `longjob` ve
+`daily_health`'in zamanlanmış tetikleyicileri kaldırıldı; ikinci test
+penceresi analiz edilmedi. Veri ve kod arşiv olarak kalır.
 
 **Yapılmayacak:**
-- Kural/parametre ayarlama, optimizasyon, keşif yarısına veya kovalara
-  göre kural değiştirme
+- Yeni toplama, yeni analiz, kural/parametre/pencere değişikliği
+- K-38 sonucuna göre yeni kural aramak (gerekirse ayrı proje, yeni ön kayıt)
 - Sürekli uzlaştırıcı, `cron` runner, dashboard, Telegram, rapor sitesi
 - B stratejisi (OKX/Binance momentum)
 
-Bu maddeler istenirse: "bu şu anki fazın dışında" de ve devam etme.
+Bu maddeler istenirse: "proje kapandı, bu kapsam dışında" de ve devam etme.
 
 ---
 

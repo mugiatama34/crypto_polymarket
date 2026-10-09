@@ -1,6 +1,9 @@
 name: Longjob uretim kosumu
 
-# Zamanlanmis uretim workflow'u -- her 6 saatte bir tetiklenir (00/06/12/18
+# KAPANDI (K-39): schedule tetikleyicisi kaldirildi, yalnizca elle
+# tetiklenir. Asagidaki aciklama kapanis oncesi uretim davranisini anlatir.
+#
+# Uretim workflow'u -- eskiden her 6 saatte bir tetiklenirdi (00/06/12/18
 # UTC). `python -m collector.main`'i LONGJOB_DURATION_SEC VERMEDEN calistirir,
 # yani LongjobRunner kendi varsayilanini (6 saat, DEFAULT_JOB_DURATION_SEC)
 # kullanir (bkz. docs/decisions.md K-37). Ardisik kosumlar state/longjob.json
@@ -16,8 +19,6 @@ name: Longjob uretim kosumu
 # shakedown_report burada CALISMAZ (ayri, gunluk bir workflow --
 # daily_health.yml, bkz. K-37).
 on:
-  schedule:
-    - cron: "0 */6 * * *"
   workflow_dispatch: {}
 
 permissions:
