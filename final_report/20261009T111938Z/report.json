@@ -1,0 +1,247 @@
+{
+  "k38": {
+    "decision_offset_sec": 120,
+    "timing_tolerance_sec": 30,
+    "ask_range_inclusive": [
+      0.8,
+      0.99
+    ],
+    "size_shares": 10.0,
+    "entry_price_basis": "vwap_asks_top5",
+    "fee_formula": "multiplier * shares * 0.07 * p * (1-p), girişte bir kez",
+    "bootstrap": {
+      "resamples": 10000,
+      "seed": 20260924,
+      "method": "iid_percentile"
+    },
+    "edge_ci_note": "Wilson %95 (kazanma orani) - ortalama giris fiyati; giris fiyati ortalamasi sabit kabul edildi"
+  },
+  "generated_at": "2026-10-09T11:19:38.451000+00:00",
+  "excluded_rows": {
+    "schema_v1": 106
+  },
+  "outcomes_loaded": 6004,
+  "windows": {
+    "kesif": {
+      "rounds": 2821,
+      "trades": 1617,
+      "skipped": {
+        "gozlem_yok": 0,
+        "gozlem_status": 2,
+        "gozlem_zamanlama": 1,
+        "aralik_disi": 1201,
+        "tie": 0,
+        "derinlik_yetersiz": 0,
+        "sonuc_yok": 0,
+        "sonuc_invalid": 0,
+        "tekrar": 0
+      },
+      "skipped_total": 1204,
+      "wins": 1472,
+      "win_rate": 0.9103277674706246,
+      "mean_entry_price": 0.918899325912183,
+      "edge": -0.008571558441558436,
+      "edge_ci95_wilson": [
+        -0.023487613326516277,
+        0.00439943882454874
+      ],
+      "fee_sensitivity": {
+        "0x": {
+          "mean_net_pnl": -0.0857155844155844,
+          "mean_net_pnl_ci95_bootstrap": [
+            -0.22370980674087812,
+            0.04883546072974645
+          ],
+          "total_pnl": -138.60209999999998
+        },
+        "1x": {
+          "mean_net_pnl": -0.13561644528670994,
+          "mean_net_pnl_ci95_bootstrap": [
+            -0.27358009607332756,
+            -0.0007737649135445393
+          ],
+          "total_pnl": -219.29179202860996
+        },
+        "2x": {
+          "mean_net_pnl": -0.1855173061578355,
+          "mean_net_pnl_ci95_bootstrap": [
+            -0.32372171004141526,
+            -0.05048668753589802
+          ],
+          "total_pnl": -299.98148405722
+        }
+      },
+      "total_pnl_1x": -219.29179202860996,
+      "longest_loss_streak": 2,
+      "max_drawdown_1x": 266.5189122784401,
+      "side_counts": {
+        "down": 813,
+        "up": 804
+      },
+      "buckets_descriptive": {
+        "0.80-0.85": {
+          "n_trades": 256,
+          "wins": 216,
+          "win_rate": 0.84375,
+          "mean_entry_price": 0.822562890625,
+          "edge": 0.021187109375000013,
+          "edge_ci95_wilson": [
+            -0.02833534746140942,
+            0.06054529690272292
+          ],
+          "mean_net_pnl_1x": 0.10983529901171876
+        },
+        "0.85-0.90": {
+          "n_trades": 263,
+          "wins": 224,
+          "win_rate": 0.8517110266159695,
+          "mean_entry_price": 0.869728897338403,
+          "edge": -0.018017870722433438,
+          "edge_ci95_wilson": [
+            -0.06602211789026813,
+            0.019859521563344473
+          ],
+          "mean_net_pnl_1x": -0.2593370582395436
+        },
+        "0.90-0.95": {
+          "n_trades": 408,
+          "wins": 369,
+          "win_rate": 0.9044117647058824,
+          "mean_entry_price": 0.9220893627450981,
+          "edge": -0.01767759803921576,
+          "edge_ci95_wilson": [
+            -0.05009660431446805,
+            0.007196817134534794
+          ],
+          "mean_net_pnl_1x": -0.22692457307151956
+        },
+        "0.95-0.99": {
+          "n_trades": 690,
+          "wins": 663,
+          "win_rate": 0.9608695652173913,
+          "mean_entry_price": 0.9714970289855073,
+          "edge": -0.010627463768115963,
+          "edge_ci95_wilson": [
+            -0.027831376652673434,
+            0.0014730464904266771
+          ],
+          "mean_net_pnl_1x": -0.125534429631058
+        }
+      }
+    },
+    "test": {
+      "rounds": 2959,
+      "trades": 1735,
+      "skipped": {
+        "gozlem_yok": 0,
+        "gozlem_status": 2,
+        "gozlem_zamanlama": 2,
+        "aralik_disi": 1220,
+        "tie": 0,
+        "derinlik_yetersiz": 0,
+        "sonuc_yok": 0,
+        "sonuc_invalid": 0,
+        "tekrar": 0
+      },
+      "skipped_total": 1224,
+      "wins": 1596,
+      "win_rate": 0.9198847262247839,
+      "mean_entry_price": 0.9230311642651298,
+      "edge": -0.003146438040345867,
+      "edge_ci95_wilson": [
+        -0.016867751831036948,
+        0.008719584084600607
+      ],
+      "fee_sensitivity": {
+        "0x": {
+          "mean_net_pnl": -0.031464380403458225,
+          "mean_net_pnl_ci95_bootstrap": [
+            -0.16301401585014413,
+            0.09044826945244956
+          ],
+          "total_pnl": -54.59070000000002
+        },
+        "1x": {
+          "mean_net_pnl": -0.07895636164167723,
+          "mean_net_pnl_ci95_bootstrap": [
+            -0.21022305255302032,
+            0.04261384015122332
+          ],
+          "total_pnl": -136.98928744831
+        },
+        "2x": {
+          "mean_net_pnl": -0.12644834287989629,
+          "mean_net_pnl_ci95_bootstrap": [
+            -0.2577361719520879,
+            -0.004760148101593236
+          ],
+          "total_pnl": -219.38787489662005
+        }
+      },
+      "total_pnl_1x": -136.98928744831,
+      "longest_loss_streak": 3,
+      "max_drawdown_1x": 152.4641622797905,
+      "side_counts": {
+        "up": 862,
+        "down": 873
+      },
+      "buckets_descriptive": {
+        "0.80-0.85": {
+          "n_trades": 242,
+          "wins": 199,
+          "win_rate": 0.8223140495867769,
+          "mean_entry_price": 0.8213194214876033,
+          "edge": 0.0009946280991736112,
+          "edge_ci95_wilson": [
+            -0.0520897038263215,
+            0.04400579378353986
+          ],
+          "mean_net_pnl_1x": -0.09262979529198367
+        },
+        "0.85-0.90": {
+          "n_trades": 281,
+          "wins": 245,
+          "win_rate": 0.8718861209964412,
+          "mean_entry_price": 0.8713240925266904,
+          "edge": 0.0005620284697508415,
+          "edge_ci95_wilson": [
+            -0.04358969903867427,
+            0.03468265292005579
+          ],
+          "mean_net_pnl_1x": -0.07272715814935937
+        },
+        "0.90-0.95": {
+          "n_trades": 417,
+          "wins": 381,
+          "win_rate": 0.9136690647482014,
+          "mean_entry_price": 0.9223803836930455,
+          "edge": -0.008711318944844115,
+          "edge_ci95_wilson": [
+            -0.03958516180018101,
+            0.014610271095482519
+          ],
+          "mean_net_pnl_1x": -0.13708900071525165
+        },
+        "0.95-0.99": {
+          "n_trades": 795,
+          "wins": 771,
+          "win_rate": 0.969811320754717,
+          "mean_entry_price": 0.9726101635220127,
+          "edge": -0.002798842767295695,
+          "edge_ci95_wilson": [
+            -0.01713697408515591,
+            0.007020677677491927
+          ],
+          "mean_net_pnl_1x": -0.04650368836405035
+        }
+      }
+    }
+  },
+  "criterion_test": {
+    "rule": "test yarisi, 1x ucret, islem basina ortalama net PnL %95 GA alt siniri > 0",
+    "ci_lower": -0.21022305255302032,
+    "passed": false,
+    "verdict": "GECMEDI -- strateji edge gostermedi; K-38 geregi longjob cron'u kapatilir, proje biter",
+    "warnings": []
+  }
+}

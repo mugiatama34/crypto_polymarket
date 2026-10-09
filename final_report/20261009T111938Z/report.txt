@@ -1,0 +1,39 @@
+Son analiz (K-38) -- paper olcum, tavsiye degildir
+
+uretim: 2026-10-09T11:19:38.451000+00:00  |  yuklenen sonuc: 6004
+analiz disi satirlar: {'schema_v1': 106}
+
+=== kesif (aciklayici) ===
+tur: 2821  islem: 1617  atlanan: 1204
+  atlama sebepleri: gozlem_yok=0, gozlem_status=2, gozlem_zamanlama=1, aralik_disi=1201, tie=0, derinlik_yetersiz=0, sonuc_yok=0, sonuc_invalid=0, tekrar=0
+  taraf: {'down': 813, 'up': 804}
+kazanma orani 0.9103  |  ort. giris (VWAP) 0.9189  |  edge -0.0086  Wilson %95 [-0.0235, 0.0044]
+  ucret 0x: islem basi net PnL -0.0857 $  %95 GA [-0.2237, 0.0488]  toplam -138.60 $
+  ucret 1x: islem basi net PnL -0.1356 $  %95 GA [-0.2736, -0.0008]  toplam -219.29 $
+  ucret 2x: islem basi net PnL -0.1855 $  %95 GA [-0.3237, -0.0505]  toplam -299.98 $
+toplam PnL (1x) -219.29 $  |  en uzun kayip serisi 2  |  maks. drawdown (1x) 266.52 $
+  kovalar (aciklayici, kural degistirmek icin kullanilamaz):
+    0.80-0.85: n=256  kazanma 0.8438 / giris 0.8226  edge 0.0212 [-0.0283, 0.0605]  net PnL/islem 0.1098
+    0.85-0.90: n=263  kazanma 0.8517 / giris 0.8697  edge -0.0180 [-0.0660, 0.0199]  net PnL/islem -0.2593
+    0.90-0.95: n=408  kazanma 0.9044 / giris 0.9221  edge -0.0177 [-0.0501, 0.0072]  net PnL/islem -0.2269
+    0.95-0.99: n=690  kazanma 0.9609 / giris 0.9715  edge -0.0106 [-0.0278, 0.0015]  net PnL/islem -0.1255
+
+=== test (KARAR) ===
+tur: 2959  islem: 1735  atlanan: 1224
+  atlama sebepleri: gozlem_yok=0, gozlem_status=2, gozlem_zamanlama=2, aralik_disi=1220, tie=0, derinlik_yetersiz=0, sonuc_yok=0, sonuc_invalid=0, tekrar=0
+  taraf: {'up': 862, 'down': 873}
+kazanma orani 0.9199  |  ort. giris (VWAP) 0.9230  |  edge -0.0031  Wilson %95 [-0.0169, 0.0087]
+  ucret 0x: islem basi net PnL -0.0315 $  %95 GA [-0.1630, 0.0904]  toplam -54.59 $
+  ucret 1x: islem basi net PnL -0.0790 $  %95 GA [-0.2102, 0.0426]  toplam -136.99 $
+  ucret 2x: islem basi net PnL -0.1264 $  %95 GA [-0.2577, -0.0048]  toplam -219.39 $
+toplam PnL (1x) -136.99 $  |  en uzun kayip serisi 3  |  maks. drawdown (1x) 152.46 $
+  kovalar (aciklayici, kural degistirmek icin kullanilamaz):
+    0.80-0.85: n=242  kazanma 0.8223 / giris 0.8213  edge 0.0010 [-0.0521, 0.0440]  net PnL/islem -0.0926
+    0.85-0.90: n=281  kazanma 0.8719 / giris 0.8713  edge 0.0006 [-0.0436, 0.0347]  net PnL/islem -0.0727
+    0.90-0.95: n=417  kazanma 0.9137 / giris 0.9224  edge -0.0087 [-0.0396, 0.0146]  net PnL/islem -0.1371
+    0.95-0.99: n=795  kazanma 0.9698 / giris 0.9726  edge -0.0028 [-0.0171, 0.0070]  net PnL/islem -0.0465
+
+=== KRITER (yalnizca test yarisi) ===
+test yarisi, 1x ucret, islem basina ortalama net PnL %95 GA alt siniri > 0
+GA alt siniri: -0.2102
+GECMEDI -- strateji edge gostermedi; K-38 geregi longjob cron'u kapatilir, proje biter
