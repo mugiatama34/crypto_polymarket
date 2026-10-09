@@ -1,6 +1,10 @@
 name: Gunluk saglik raporu
 
-# scripts/shakedown_report.py'yi uretimde GUNLUK calistirir -- longjob.yml'in
+# KAPANDI (K-39): schedule tetikleyicisi kaldirildi, yalnizca elle
+# tetiklenir. Asagidaki "cron kosumu" aciklamalari kapanis oncesi
+# davranisi anlatir.
+#
+# scripts/shakedown_report.py'yi uretimde GUNLUK calistirirdi -- longjob.yml'in
 # kendisinden ayri (bkz. docs/decisions.md K-37). Her gun 00:20 UTC'de
 # tetiklenir; bu saat 18:00 UTC'de baslayan son longjob kosumunun (~5s58d
 # surer, shutdown_margin_sec) bitip son commit'ini push'lamasi icin tampon
@@ -25,8 +29,6 @@ name: Gunluk saglik raporu
 # (shakedown_report salt-okunur, bkz. scripts/shakedown_report.py
 # docstring'i) -- yalnizca daily_health/ commit edilir.
 on:
-  schedule:
-    - cron: "20 0 * * *"
   workflow_dispatch:
     inputs:
       hours_back:

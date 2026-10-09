@@ -1222,3 +1222,30 @@ atlanır), yarıda kesilirse yeniden çalıştırmak güvenli. Satırlar
 
 **Kapsam kilidi değişmez (K-01):** emir, cüzdan, kimlik bilgisi yok. Bu
 analiz bir paper ölçümüdür; getiri tahmini veya tavsiye değildir.
+
+---
+
+## K-39 — Proje kapandı: K-38 kriteri test yarısında geçmedi
+
+K-38'in önceden kayıtlı kriteri, kural ve pencere değiştirilmeden
+9 Ekim 2026'da `python -m scripts.final_analysis` ile ölçüldü.
+Rapor: [`final_report/20261009T111938Z/`](../final_report/20261009T111938Z/report.txt)
+(`report.txt`, `report.json`; kesinleşmemiş market uyarısı: 0).
+
+**Test yarısı (24 Eylül – 8 Ekim, karar):** 1735 işlem;
+edge (kazanma oranı − ortalama VWAP giriş) **−0.0031**, Wilson %95
+[−0.0169, 0.0087]; 1× ücretle işlem başına ortalama net PnL −0.0790 $,
+%95 GA alt sınırı **−0.21 $** (kriter: > 0). **GEÇMEDİ.**
+
+**Karar (K-38 karar akışı gereği):**
+- Strateji edge göstermedi; proje biter.
+- `longjob.yml` ve `daily_health.yml`'in `schedule` tetikleyicileri
+  kaldırıldı. Dosyalar silinmedi; `workflow_dispatch` kaldı.
+- İkinci test penceresi (9–22 Ekim) **analiz edilmedi** — K-38'e göre
+  yalnızca test yarısı geçerse uygulanacaktı, gerek kalmadı.
+- Veri ve kod arşiv olarak kalır. Ham veri değiştirilmez (değişmez
+  kural 1). Kural/eşik/pencere sonuç görüldükten sonra değiştirilmedi;
+  bu kayıt K-38'i düzenlemez.
+
+**Kapsam kilidi değişmez (K-01).** Bu bir paper ölçümüdür; getiri
+tahmini veya tavsiye değildir.
